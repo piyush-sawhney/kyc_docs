@@ -1,0 +1,78 @@
+@import '@mdi/font/css/materialdesignicons.css';
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.border {
+  border: 1px solid rgb(226, 232, 240) !important;
+}
+
+.border-b {
+  border-bottom: 1px solid rgb(226, 232, 240) !important;
+}
+
+.border-t {
+  border-top: 1px solid rgb(226, 232, 240) !important;
+}
+
+.rounded-xl {
+  border-radius: 12px !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(203, 213, 225);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(148, 163, 184);
+}
+
+/* Vuetify overrides */
+.v-field--variant-outlined .v-field__outline__start,
+.v-field--variant-outlined .v-field__outline__notch::before,
+.v-field--variant-outlined .v-field__outline__notch::after,
+.v-field--variant-outlined .v-field__outline__end {
+  border-color: rgb(226, 232, 240) !important;
+}
+
+.v-field:hover .v-field__outline__start,
+.v-field:hover .v-field__outline__notch::before,
+.v-field:hover .v-field__outline__notch::after,
+.v-field:hover .v-field__outline__end {
+  border-color: rgb(148, 163, 184) !important;
+}
+
+.v-field--focused .v-field__outline__start,
+.v-field--focused .v-field__outline__notch::before,
+.v-field--focused .v-field__outline__notch::after,
+.v-field--focused .v-field__outline__end {
+  border-color: rgb(30, 58, 95) !important;
+}
+
+.v-table {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+}
+
+.v-btn--size-small {
+  font-size: 13px !important;
+}
+
+.v-chip--size-x-small {
+  font-size: 11px !important;
+}
