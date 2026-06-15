@@ -18,6 +18,8 @@ const editingImageDocId = ref<string | null>(null)
 const showEditor = ref(false)
 const editorLoading = ref(false)
 const uploadLoading = ref(false)
+const errorSnackbar = ref(false)
+const errorMsg = ref('')
 
 async function load() {
   try {
@@ -25,12 +27,20 @@ async function load() {
     client.value = data
     const { data: docs } = await api.get(`/clients/${route.params.id}/documents`)
     documents.value = docs
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'Failed to load client'
+    errorSnackbar.value = true
+  }
   loading.value = false
 }
 
 async function handleUpload() {
   if (!selectedFile.value || !selectedDocType.value || !selectedDocNumber.value) return
+  if (!selectedFile.value.type.startsWith('image/')) {
+    errorMsg.value = 'Only JPEG and PNG images are allowed'
+    errorSnackbar.value = true
+    return
+  }
   uploadLoading.value = true
   try {
     const fd = new FormData()
@@ -45,7 +55,10 @@ async function handleUpload() {
     selectedDocType.value = ''
     selectedDocNumber.value = ''
     load()
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'Upload failed'
+    errorSnackbar.value = true
+  }
   uploadLoading.value = false
 }
 
@@ -62,7 +75,10 @@ async function openEditor(doc: any) {
     editingImageFile.value = new File([res.data], 'document.jpg', { type: res.data.type })
     editingImageDocId.value = doc.id
     showEditor.value = true
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'Failed to load image for editing'
+    errorSnackbar.value = true
+  }
   editorLoading.value = false
 }
 
@@ -79,7 +95,10 @@ async function onEditorSave(blob: Blob, filename: string) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     load()
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'Failed to save edited image'
+    errorSnackbar.value = true
+  }
 }
 
 function handleDownload(docId: string) {
@@ -159,5 +178,9 @@ onMounted(load)
       @save="onEditorSave" />
     <v-progress-circular v-if="editorLoading" indeterminate size="24" width="2" color="primary"
       class="ma-auto" />
+
+    <v-snackbar v-model="errorSnackbar" color="error" variant="tonal" location="top" :timeout="4000">
+      {{ errorMsg }}
+    </v-snackbar>
   </div>
 </template>

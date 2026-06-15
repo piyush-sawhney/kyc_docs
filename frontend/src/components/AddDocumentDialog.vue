@@ -13,9 +13,16 @@ const expiryDate = ref('')
 const side = ref<'front' | 'back'>('front')
 const file = ref<File | null>(null)
 const saving = ref(false)
+const errorSnackbar = ref(false)
+const errorMsg = ref('')
 
 async function handleSubmit() {
   if (!file.value || !documentTypeId.value || !documentNumber.value) return
+  if (!file.value.type.startsWith('image/')) {
+    errorMsg.value = 'Only JPEG and PNG images are allowed'
+    errorSnackbar.value = true
+    return
+  }
   saving.value = true
   try {
     const fd = new FormData()
@@ -29,7 +36,10 @@ async function handleSubmit() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     emit('done')
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    errorMsg.value = err?.response?.data?.message || 'Upload failed'
+    errorSnackbar.value = true
+  }
   saving.value = false
 }
 </script>
@@ -68,6 +78,9 @@ async function handleSubmit() {
         </v-btn>
         <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
       </v-card-actions>
+      <v-snackbar v-model="errorSnackbar" color="error" variant="tonal" location="top" :timeout="4000">
+        {{ errorMsg }}
+      </v-snackbar>
     </v-card>
   </v-dialog>
 </template>

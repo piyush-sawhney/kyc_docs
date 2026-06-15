@@ -36,6 +36,9 @@ const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
 const ZOOM_FACTOR = 1.25
 
+const isZooming = ref(false)
+const currentCoords = ref<{ width: number; height: number; left: number; top: number } | null>(null)
+
 const filterStyle = computed(() => {
   if (activeTool.value !== 'adjust') return {}
   const b = (brightness.value / 100).toFixed(2)
@@ -60,8 +63,9 @@ function onError() {
   loading.value = false
 }
 
-function onChange() {
-  if (isReady.value) {
+function onChange({ coordinates }: { coordinates: { width: number; height: number; left: number; top: number } }) {
+  currentCoords.value = coordinates
+  if (!isZooming.value && isReady.value) {
     dirty.value = true
   }
 }
@@ -220,26 +224,39 @@ function resetAll() {
   zoomLevel.value = 1
   dirty.value = false
   activeTool.value = 'crop'
+  isZooming.value = true
   cropperRef.value?.reset()
+  isZooming.value = false
 }
 
 function zoomIn() {
-  if (!cropperRef.value) return
+  if (!cropperRef.value || !currentCoords.value || zoomLevel.value >= MAX_ZOOM) return
+
+  isZooming.value = true
+  const coords = currentCoords.value
   cropperRef.value.zoom(ZOOM_FACTOR)
+  cropperRef.value.setCoordinates(coords, { autoZoom: false })
   zoomLevel.value = Math.min(MAX_ZOOM, zoomLevel.value * ZOOM_FACTOR)
+  isZooming.value = false
 }
 
 function zoomOut() {
-  if (!cropperRef.value) return
+  if (!cropperRef.value || !currentCoords.value || zoomLevel.value <= MIN_ZOOM) return
+
+  isZooming.value = true
+  const coords = currentCoords.value
   cropperRef.value.zoom(1 / ZOOM_FACTOR)
+  cropperRef.value.setCoordinates(coords, { autoZoom: false })
   zoomLevel.value = Math.max(MIN_ZOOM, zoomLevel.value / ZOOM_FACTOR)
+  isZooming.value = false
 }
 
 function resetZoom() {
   if (!cropperRef.value) return
-  const factor = 1 / zoomLevel.value
-  cropperRef.value.zoom(factor)
+  isZooming.value = true
+  cropperRef.value.reset()
   zoomLevel.value = 1
+  isZooming.value = false
 }
 
 function handleWheel(e: WheelEvent) {
@@ -299,7 +316,7 @@ function handleWheel(e: WheelEvent) {
         <div class="canvas-area">
           <v-progress-circular v-if="loading" indeterminate size="36" width="3" color="primary" />
 
-          <template v-if="!loading && imageUrl">
+          <template v-if="imageUrl">
             <div class="cropper-wrapper" :style="filterStyle" @wheel="handleWheel">
               <Cropper
                 ref="cropperRef"

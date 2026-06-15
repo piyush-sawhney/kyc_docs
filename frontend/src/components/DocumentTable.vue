@@ -46,7 +46,7 @@ async function onUploadSave(blob: Blob, filename: string) {
 
 const autoCompleteItems = computed(() => [
   ...documentTypes.value,
-  { name: '+ Create new document type...', id: '__new__' },
+  { name: 'New Document Type', id: '__new__' },
 ])
 
 interface NewRow {
@@ -64,8 +64,7 @@ const editingDates = ref<Record<string, string>>({})
 const activeDocCount = computed(() => {
   let count = 0
   for (const g of groups.value) {
-    if (g.front && !g.front.isDeleted) count++
-    if (g.back && !g.back.isDeleted) count++
+    if ((g.front && !g.front.isDeleted) || (g.back && !g.back.isDeleted)) count++
   }
   return count
 })
@@ -138,15 +137,15 @@ async function executeDelete() {
   if (!deleteDocId.value) return
   deleting.value = true
   try {
-    await api.delete(`/documents/${deleteDocId.value}`)
+    await api.patch(`/documents/${deleteDocId.value}/clear-image`)
     singleDeleteDialog.value = false
     deleteDocId.value = ''
     deleteSide.value = ''
     await load()
     emit('needRefresh')
   } catch (err: any) {
-    console.error('Failed to delete document', err)
-    showError(err?.response?.data?.message || 'Failed to delete document')
+    console.error('Failed to clear document image', err)
+    showError(err?.response?.data?.message || 'Failed to clear document image')
     singleDeleteDialog.value = false
   }
   deleting.value = false
@@ -297,6 +296,10 @@ function uploadForRow(nr: NewRow, side: 'front' | 'back') {
   input.onchange = () => {
     const file = input.files?.[0]
     if (!file) return
+    if (!file.type.startsWith('image/')) {
+      showError('Only JPEG and PNG images are allowed')
+      return
+    }
     editingUploadFile.value = file
     editingUploadCb.value = async (blob: Blob, filename: string) => {
       const fd = new FormData()
@@ -312,7 +315,9 @@ function uploadForRow(nr: NewRow, side: 'front' | 'back') {
         cancelRow(nr)
         await load()
         emit('needRefresh')
-      } catch (err) { console.error('Failed to upload document', err) }
+      } catch (err: any) {
+        showError(err?.response?.data?.message || 'Failed to upload document')
+      }
     }
   }
   input.click()
@@ -325,6 +330,10 @@ function uploadExisting(side: 'front' | 'back', groupId?: string) {
   input.onchange = () => {
     const file = input.files?.[0]
     if (!file) return
+    if (!file.type.startsWith('image/')) {
+      showError('Only JPEG and PNG images are allowed')
+      return
+    }
     const existing = groups.value.find((g: any) => g.documentGroupId === groupId)
     if (!existing) return
     editingUploadFile.value = file
@@ -343,7 +352,9 @@ function uploadExisting(side: 'front' | 'back', groupId?: string) {
         })
         await load()
         emit('needRefresh')
-      } catch (err) { console.error('Failed to re-upload document', err) }
+      } catch (err: any) {
+        showError(err?.response?.data?.message || 'Failed to re-upload document')
+      }
     }
   }
   input.click()
@@ -469,7 +480,7 @@ function hideNumber(groupId: string) {
                 @change="saveDate(g, 'expiryDate')" />
             </td>
             <td class="text-center col-side">
-              <template v-if="g.front && !g.front.isDeleted">
+              <template v-if="g.front && !g.front.isDeleted && g.front.fileSize != null">
                 <div class="d-flex align-center justify-center ga-0 flex-nowrap">
                   <v-chip color="success" variant="tonal" size="x-small" label class="flex-shrink-0 font-weight-medium px-1">
                     <v-icon start size="11">mdi-check-circle</v-icon> Uploaded
@@ -504,7 +515,7 @@ function hideNumber(groupId: string) {
               </template>
             </td>
             <td class="text-center col-side">
-              <template v-if="g.back && !g.back.isDeleted">
+              <template v-if="g.back && !g.back.isDeleted && g.back.fileSize != null">
                 <div class="d-flex align-center justify-center ga-0 flex-nowrap">
                   <v-chip color="success" variant="tonal" size="x-small" label class="flex-shrink-0 font-weight-medium px-1">
                     <v-icon start size="11">mdi-check-circle</v-icon> Uploaded

@@ -73,6 +73,12 @@ export class DocumentsController {
     return this.documentsService.softDelete(id, user.id);
   }
 
+  @Patch('documents/:id/clear-image')
+  @AuditAction({ entityType: 'document', action: 'UPDATE' })
+  clearImage(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.documentsService.clearImage(id, user.id);
+  }
+
   @Post('documents/:id/rotate')
   @AuditAction({ entityType: 'document', action: 'UPDATE' })
   rotate(@Param('id') id: string, @Body() dto: RotateDto, @CurrentUser() user: any) {

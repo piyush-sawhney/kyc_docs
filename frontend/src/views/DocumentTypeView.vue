@@ -41,7 +41,7 @@ onMounted(load)
       <v-card-text class="d-flex ga-2 pb-0">
         <v-text-field v-model="newName" label="New document type" hide-details density="compact"
           @keyup.enter="add" />
-        <v-btn color="primary" @click="add" prepend-icon="mdi-plus">Add</v-btn>
+        <v-btn color="primary" @click="add" prepend-icon="mdi-plus">- New Document Type</v-btn>
       </v-card-text>
 
       <v-list v-if="types.length" lines="one">

@@ -12,6 +12,10 @@
     "db:studio": "drizzle-kit studio",
     "seed": "npx ts-node src/seed.ts"
   },
+  "overrides": {
+    "esbuild": ">=0.28.0",
+    "tar": ">=7.5.8"
+  },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/helmet": "^13.0.2",

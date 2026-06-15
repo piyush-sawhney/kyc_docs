@@ -10,3 +10,5 @@ Practises
 1. Ensure Secure Coding Guidelines
 2. Systematic approach to problem solving.
 3. Ease of use, premiumness in the UI/UX developement
+
+Soft Deleted Objects should never show in the UI

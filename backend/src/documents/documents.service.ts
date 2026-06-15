@@ -122,7 +122,7 @@ export class DocumentsService {
     }
 
     return Object.values(groups).sort(
-      (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
   }
 
@@ -186,9 +186,28 @@ export class DocumentsService {
     };
   }
 
+  async clearImage(id: string, userId?: string) {
+    const doc = await this.findOne(id);
+    const [updated] = await this.db
+      .update(clientDocuments)
+      .set({
+        encryptedData: '',
+        encryptionIv: '',
+        encryptionAuthTag: '',
+        fileSize: null,
+        mimeType: null,
+        updatedBy: userId || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(clientDocuments.id, doc.id))
+      .returning();
+    return this.sanitize(updated);
+  }
+
   async download(id: string) {
     const doc = await this.findOne(id);
     if (doc.isDeleted) throw new NotFoundException('Document has been deleted');
+    if (!doc.fileSize) throw new NotFoundException('Image has been cleared');
 
     const decrypted = this.encryptionService.decrypt(
       doc.encryptedData,
