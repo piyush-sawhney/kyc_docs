@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import api from '../api/client'
 import MetadataDialog from './MetadataDialog.vue'
 import ImageEditor from './ImageEditor.vue'
+import PdfConfigDialog from './PdfConfigDialog.vue'
+import PdfPreviewDialog from './PdfPreviewDialog.vue'
+import { generatePdf, type PdfConfig } from '../utils/generatePdf'
 
 const emit = defineEmits<{
   preview: [groupId: string]
@@ -34,6 +37,10 @@ function showError(msg: string) {
   errorMsg.value = msg
   errorSnackbar.value = true
 }
+
+const pdfConfigDialog = ref(false)
+const pdfGenerating = ref(false)
+const pdfBlob = ref<Blob | null>(null)
 
 const editingUploadFile = ref<File | null>(null)
 const editingUploadCb = ref<((blob: Blob, filename: string) => Promise<void>) | null>(null)
@@ -182,6 +189,32 @@ async function executeBatchDelete() {
     clearSelection()
   }
   deleting.value = false
+}
+
+async function handleGeneratePdf(config: PdfConfig) {
+  const docIds: string[] = []
+  for (const g of groups.value) {
+    if (g.documentGroupId && selected.value[g.documentGroupId]) {
+      if (g.front && !g.front.isDeleted && g.front.fileSize != null) docIds.push(g.front.id)
+      if (g.back && !g.back.isDeleted && g.back.fileSize != null) docIds.push(g.back.id)
+    }
+  }
+  if (docIds.length === 0) return
+
+  pdfConfigDialog.value = false
+  pdfGenerating.value = true
+  try {
+    const blobs = await Promise.all(
+      docIds.map((id) =>
+        api.get(`/documents/${id}/download`, { responseType: 'blob' }).then((r) => r.data),
+      ),
+    )
+    const images = blobs.map((blob) => ({ blob }))
+    pdfBlob.value = await generatePdf(images, config)
+  } catch (err: any) {
+    showError(err?.message || 'Failed to generate PDF')
+  }
+  pdfGenerating.value = false
 }
 
 let dupTimeout: ReturnType<typeof setTimeout> | null = null
@@ -631,6 +664,12 @@ function hideNumber(groupId: string) {
             :disabled="selectedCount === 0" @click="batchDeleteDialog = true">
             Delete
           </v-btn>
+          <v-btn color="primary" variant="tonal" size="default" class="px-4 font-weight-medium"
+            prepend-icon="mdi-file-pdf-box"
+            :disabled="selectedCount === 0" :loading="pdfGenerating"
+            @click="pdfConfigDialog = true">
+            Generate PDF
+          </v-btn>
         </div>
       </div>
     </v-card>
@@ -692,6 +731,12 @@ function hideNumber(groupId: string) {
     <ImageEditor v-if="editingUploadFile" :image-src="editingUploadFile"
       @close="editingUploadFile = null; editingUploadCb = null"
       @save="onUploadSave" />
+
+    <PdfConfigDialog v-if="pdfConfigDialog" @close="pdfConfigDialog = false"
+      @generate="handleGeneratePdf" />
+
+    <PdfPreviewDialog v-if="pdfBlob" :pdf-blob="pdfBlob"
+      @close="pdfBlob = null" />
 
     <v-snackbar v-model="errorSnackbar" color="error" variant="tonal" location="top" :timeout="4000">
       {{ errorMsg }}
