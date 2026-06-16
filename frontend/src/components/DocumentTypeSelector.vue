@@ -40,25 +40,37 @@ async function handleAdd() {
 </script>
 
 <template>
-  <div class="d-flex align-center ga-2">
-    <v-select v-model="model" :items="items" item-title="name" item-value="id"
-      :label="label" variant="outlined" hide-details class="flex-grow-1" />
-    <v-btn icon size="small" color="primary" variant="tonal" @click="openAdd" title="Add document type">
-      <v-icon>mdi-plus</v-icon>
-    </v-btn>
+  <div class="d-flex align-items-center gap-2">
+    <select class="form-select flex-grow-1" :value="model"
+      @change="model = ($event.target as HTMLSelectElement).value || null">
+      <option :value="null" disabled>{{ label }}</option>
+      <option v-for="item in items" :key="item.id" :value="item.id">{{ item.name }}</option>
+    </select>
+    <button class="btn btn-sm btn-outline-primary flex-shrink-0" @click="openAdd" title="Add document type">
+      <i class="bi bi-plus"></i>
+    </button>
   </div>
 
-  <v-dialog :key="addDialogKey" v-model="addDialog" max-width="400">
-    <v-card>
-      <v-card-title class="pa-4">Add Document Type</v-card-title>
-      <v-card-text>
-        <v-text-field v-model="newName" label="Document Type Name" variant="outlined"
-          autofocus @keyup.enter="handleAdd" />
-      </v-card-text>
-      <v-card-actions class="pa-4 pt-0">
-        <v-btn color="primary" :loading="adding" @click="handleAdd" prepend-icon="mdi-check">Create</v-btn>
-        <v-btn variant="text" @click="addDialog = false">Cancel</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+  <div class="modal-backdrop fade show" v-if="addDialog"></div>
+  <div class="modal d-block" tabindex="-1" :key="addDialogKey" v-if="addDialog">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h6 class="fw-bold mb-0">Add Document Type</h6>
+          <button type="button" class="btn-close" @click="addDialog = false"></button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-control" v-model="newName"
+            placeholder="Document Type Name" @keyup.enter="handleAdd" autofocus />
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btn btn-primary" :disabled="adding" @click="handleAdd">
+            <span v-if="adding" class="spinner-border spinner-border-sm me-1"></span>
+            <i class="bi bi-check me-1"></i> Create
+          </button>
+          <button class="btn btn-outline-secondary" @click="addDialog = false">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>

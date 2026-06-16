@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import PasswordField from '../components/PasswordField.vue'
+
 const router = useRouter()
 const auth = useAuthStore()
 const email = ref('')
@@ -14,7 +16,9 @@ async function handleLogin() {
   error.value = ''
   try {
     const result = await auth.login(email.value, password.value)
-    if (result.mustChangePassword) {
+    if (result.recoveryCodesMissing) {
+      router.push('/recovery-codes?force=true')
+    } else if (result.mustChangePassword) {
       router.push('/change-password')
     } else {
       router.push('/')
@@ -28,38 +32,42 @@ async function handleLogin() {
 </script>
 
 <template>
-  <v-container class="fill-height d-flex align-center justify-center" style="background: linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%);">
-    <v-card width="400" class="pa-8 rounded-xl" elevation="0">
-      <v-card-item class="pa-0 mb-6">
-        <div class="d-flex flex-column align-center">
-          <v-avatar color="primary" size="56" class="mb-3" variant="tonal">
-            <v-icon size="30" color="primary">mdi-file-document-check</v-icon>
-          </v-avatar>
-          <div class="text-h5 font-weight-bold text-primary">KYC Docs</div>
-          <div class="text-caption text-grey mt-1">Document Management System</div>
+  <div class="min-vh-100 d-flex align-items-center justify-content-center"
+    style="background: linear-gradient(135deg, #1E3A5F 0%, #0F172A 100%);">
+    <div class="card shadow-lg border-0" style="width: 400px; border-radius: 16px;">
+      <div class="card-body p-5 text-center">
+        <div class="d-inline-flex align-items-center justify-content-center mb-3"
+          style="width: 56px; height: 56px; border-radius: 50%; background: rgba(30,58,95,0.08);">
+          <i class="bi bi-file-earmark-check" style="font-size: 28px; color: #1E3A5F;"></i>
         </div>
-      </v-card-item>
+        <h4 class="fw-bold" style="color: #1E3A5F;">KYC Docs</h4>
+        <p class="text-muted small mb-4">Document Management System</p>
 
-      <v-card-text class="pa-0">
-        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4 rounded-lg" closable>
-          {{ error }}
-        </v-alert>
+        <div v-if="error" class="alert alert-danger d-flex align-items-center py-2 px-3 small" role="alert">
+          <i class="bi bi-exclamation-circle me-2"></i> {{ error }}
+          <button type="button" class="btn-close ms-auto" @click="error = ''" style="font-size: 12px;"></button>
+        </div>
 
-        <v-form @submit.prevent="handleLogin">
-          <v-text-field v-model="email" label="Email" type="email"
-            prepend-inner-icon="mdi-email-outline" class="mb-3" />
-          <v-text-field v-model="password" label="Password" type="password"
-            prepend-inner-icon="mdi-lock-outline" class="mb-4" />
-          <v-btn type="submit" color="primary" block size="large" :loading="loading" variant="tonal">
+        <form @submit.prevent="handleLogin">
+          <div class="mb-3">
+            <label class="form-label text-start d-block">Email</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" class="form-control" v-model="email" placeholder="Email" required />
+            </div>
+          </div>
+          <div class="mb-4">
+            <PasswordField v-model="password" label="Password" />
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-lg" :disabled="loading">
+            <span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status"></span>
             Sign In
-          </v-btn>
-        </v-form>
-      </v-card-text>
+          </button>
+        </form>
 
-      <v-card-text class="pa-0 mt-4 text-center">
-        <v-divider class="mb-3" />
-        <small class="text-grey">KYC Docs v1.0</small>
-      </v-card-text>
-    </v-card>
-  </v-container>
+        <hr class="my-4" />
+        <small class="text-muted">KYC Docs v1.0</small>
+      </div>
+    </div>
+  </div>
 </template>

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const clients = pgTable('clients', {
@@ -6,6 +6,9 @@ export const clients = pgTable('clients', {
   name: varchar('name', { length: 255 }).notNull(),
   avatar: text('avatar'),
   createdBy: uuid('created_by').notNull().references(() => users.id),
+  isDeleted: boolean('is_deleted').notNull().default(false),
+  deletedAt: timestamp('deleted_at'),
+  deletedBy: uuid('deleted_by').references(() => users.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

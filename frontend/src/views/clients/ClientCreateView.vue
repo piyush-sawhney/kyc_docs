@@ -13,8 +13,8 @@ async function handleSubmit() {
   loading.value = true
   error.value = ''
   try {
-    await api.post('/clients', { name: name.value })
-    router.push('/')
+    const { data } = await api.post('/clients', { name: name.value })
+    router.push(`/?selectClient=${data.id}`)
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to create client'
   } finally {
@@ -24,27 +24,31 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center pa-6">
-    <v-card width="480">
-      <v-card-title class="pa-4">
-        <div class="text-h6 font-weight-bold">New Client</div>
-        <div class="text-body-2 text-grey">Create a new client record</div>
-      </v-card-title>
-      <v-card-text>
-        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" closable>
-          {{ error }}
-        </v-alert>
-        <v-form @submit.prevent="handleSubmit">
-          <v-text-field v-model="name" label="Client Name" variant="outlined"
-            autofocus :disabled="loading" />
-          <div class="d-flex ga-3 mt-4">
-            <v-btn type="submit" color="primary" :loading="loading" prepend-icon="mdi-check">
-              Create
-            </v-btn>
-            <v-btn variant="outlined" @click="router.push('/')">Cancel</v-btn>
+  <div class="p-4 d-flex flex-column align-items-center" style="background: #F1F5F9; min-height: calc(100vh - 56px);">
+    <h5 class="fw-bold mb-1" style="color: #1E293B;">New Client</h5>
+    <p class="text-muted small mb-4">Create a new client record</p>
+
+    <div v-if="error" class="alert alert-danger py-2 px-3 small mb-3" style="max-width: 480px; width: 100%;">{{ error }}</div>
+
+    <div class="card border-0 shadow-sm" style="max-width: 480px; width: 100%; border-radius: 12px;">
+      <div class="card-body">
+        <form @submit.prevent="handleSubmit">
+          <div class="mb-3">
+            <label class="form-label">Client Name</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-person"></i></span>
+              <input type="text" class="form-control" v-model="name" placeholder="Client Name" autofocus :disabled="loading" />
+            </div>
           </div>
-        </v-form>
-      </v-card-text>
-    </v-card>
-  </v-container>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+              <i class="bi bi-check me-1"></i> Create Client
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @click="router.push('/')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </template>

@@ -57,6 +57,9 @@ onMounted(() => {
 function onReady() {
   loading.value = false
   isReady.value = true
+  if (!currentCoords.value) {
+    currentCoords.value = cropperRef.value?.getCoordinates() ?? { width: 0, height: 0, left: 0, top: 0 }
+  }
 }
 
 function onError() {
@@ -230,8 +233,7 @@ function resetAll() {
 }
 
 function zoomIn() {
-  if (!cropperRef.value || !currentCoords.value || zoomLevel.value >= MAX_ZOOM) return
-
+  if (!cropperRef.value || !isReady.value || zoomLevel.value >= MAX_ZOOM) return
   isZooming.value = true
   const coords = currentCoords.value
   cropperRef.value.zoom(ZOOM_FACTOR)
@@ -241,8 +243,7 @@ function zoomIn() {
 }
 
 function zoomOut() {
-  if (!cropperRef.value || !currentCoords.value || zoomLevel.value <= MIN_ZOOM) return
-
+  if (!cropperRef.value || !isReady.value || zoomLevel.value <= MIN_ZOOM) return
   isZooming.value = true
   const coords = currentCoords.value
   cropperRef.value.zoom(1 / ZOOM_FACTOR)
@@ -270,213 +271,200 @@ function handleWheel(e: WheelEvent) {
 </script>
 
 <template>
-  <v-dialog :model-value="true" fullscreen transition="dialog-bottom-transition">
-    <v-card class="editor-dialog">
-      <v-toolbar color="transparent" density="compact" class="editor-toolbar">
-        <v-btn icon="mdi-close" variant="text" @click="handleClose" />
-        <v-toolbar-title class="text-body-1 font-weight-medium">Image Editor</v-toolbar-title>
-        <v-spacer />
-        <v-btn color="primary" :loading="saving" :disabled="loading"
-          prepend-icon="mdi-content-save" variant="tonal" class="font-weight-medium px-4"
-          @click="handleSave">
-          Save
-        </v-btn>
-      </v-toolbar>
-
-      <div class="editor-body">
-        <div class="tool-sidebar">
-          <div class="tool-group">
-            <v-btn :color="activeTool === 'crop' ? 'primary' : 'grey-darken-1'"
-              variant="text" size="small" class="tool-btn" @click="setTool('crop')"
-              :disabled="loading" stacked>
-              <v-icon size="22">mdi-crop</v-icon>
-              <span class="tool-label">Crop</span>
-            </v-btn>
-            <v-btn :color="activeTool === 'rotate' ? 'primary' : 'grey-darken-1'"
-              variant="text" size="small" class="tool-btn" @click="setTool('rotate')"
-              :disabled="loading" stacked>
-              <v-icon size="22">mdi-rotate-right</v-icon>
-              <span class="tool-label">Rotate</span>
-            </v-btn>
-            <v-btn :color="activeTool === 'adjust' ? 'primary' : 'grey-darken-1'"
-              variant="text" size="small" class="tool-btn" @click="setTool('adjust')"
-              :disabled="loading" stacked>
-              <v-icon size="22">mdi-tune</v-icon>
-              <span class="tool-label">Adjust</span>
-            </v-btn>
-          </div>
-          <v-divider class="mx-2 my-2" />
-          <v-btn color="grey-darken-1" variant="text" size="small" class="tool-btn"
-            @click="resetAll" :disabled="loading" stacked>
-            <v-icon size="22">mdi-restore</v-icon>
-            <span class="tool-label">Reset</span>
-          </v-btn>
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal d-block" tabindex="-1" style="overflow: hidden;">
+    <div class="modal-dialog modal-fullscreen p-0 m-0" style="max-width: 100vw;">
+      <div class="modal-content border-0" style="height: 100vh; border-radius: 0; background: rgb(248, 250, 252);">
+        <div class="d-flex align-items-center px-3 border-bottom bg-white" style="flex-shrink: 0; min-height: 48px; z-index: 10;">
+          <button class="btn btn-sm btn-link text-decoration-none text-dark me-2" @click="handleClose">
+            <i class="bi bi-x" style="font-size: 20px;"></i>
+          </button>
+          <small class="fw-medium flex-grow-1">Image Editor</small>
+          <button class="btn btn-sm btn-primary" :disabled="loading || saving" @click="handleSave">
+            <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+            <i class="bi bi-floppy me-1"></i> Save
+          </button>
         </div>
 
-        <div class="canvas-area">
-          <v-progress-circular v-if="loading" indeterminate size="36" width="3" color="primary" />
-
-          <template v-if="imageUrl">
-            <div class="cropper-wrapper" :style="filterStyle" @wheel="handleWheel">
-              <Cropper
-                ref="cropperRef"
-                :src="imageUrl"
-                :stencil-props="{ aspectRatio: null }"
-                :resize-image="{ wheel: false }"
-                :check-orientation="true"
-                :transitions="true"
-                class="cropper-component"
-                @ready="onReady"
-                @error="onError"
-                @change="onChange"
-              />
+        <div class="editor-body">
+          <div class="tool-sidebar">
+            <div class="d-flex flex-column align-items-center gap-1">
+              <button class="tool-btn" :class="{ 'tool-active': activeTool === 'crop' }"
+                @click="setTool('crop')" :disabled="loading">
+                <i class="bi bi-crop" style="font-size: 20px;"></i>
+                <span class="tool-label">Crop</span>
+              </button>
+              <button class="tool-btn" :class="{ 'tool-active': activeTool === 'rotate' }"
+                @click="setTool('rotate')" :disabled="loading">
+                <i class="bi bi-arrow-clockwise" style="font-size: 20px;"></i>
+                <span class="tool-label">Rotate</span>
+              </button>
+              <button class="tool-btn" :class="{ 'tool-active': activeTool === 'adjust' }"
+                @click="setTool('adjust')" :disabled="loading">
+                <i class="bi bi-sliders" style="font-size: 20px;"></i>
+                <span class="tool-label">Adjust</span>
+              </button>
             </div>
-          </template>
+            <hr class="mx-2 my-2" />
+            <button class="tool-btn" @click="resetAll" :disabled="loading">
+              <i class="bi bi-arrow-counterclockwise" style="font-size: 20px;"></i>
+              <span class="tool-label">Reset</span>
+            </button>
+          </div>
 
-          <div v-if="!loading" class="zoom-pill">
-            <v-btn icon variant="tonal" size="x-small" color="grey" @click="zoomOut"
-              :disabled="zoomLevel <= MIN_ZOOM" title="Zoom out">
-              <v-icon size="14">mdi-minus</v-icon>
-            </v-btn>
-            <span class="zoom-text">{{ Math.round(zoomLevel * 100) }}%</span>
-            <v-btn icon variant="tonal" size="x-small" color="grey" @click="zoomIn"
-              :disabled="zoomLevel >= MAX_ZOOM" title="Zoom in">
-              <v-icon size="14">mdi-plus</v-icon>
-            </v-btn>
-            <v-btn icon variant="text" size="x-small" color="grey" @click="resetZoom" title="Fit to screen">
-              <v-icon size="13">mdi-fit-to-screen-outline</v-icon>
-            </v-btn>
+          <div class="canvas-area">
+            <div v-if="loading" class="spinner-border text-primary" role="status"></div>
+
+            <template v-if="imageUrl">
+              <div class="cropper-wrapper" :style="filterStyle" @wheel.prevent="handleWheel">
+                <Cropper
+                  ref="cropperRef"
+                  :src="imageUrl"
+                  :stencil-props="{ aspectRatio: null }"
+                  :resize-image="{ wheel: false }"
+                  :check-orientation="true"
+                  :transitions="true"
+                  class="cropper-component"
+                  @ready="onReady"
+                  @error="onError"
+                  @change="onChange"
+                />
+              </div>
+            </template>
+
+            <div v-if="!loading" class="zoom-pill">
+              <button class="btn btn-sm btn-light border rounded-circle p-1 d-flex align-items-center justify-content-center"
+                style="width: 26px; height: 26px;" :disabled="zoomLevel <= MIN_ZOOM"
+                @click="zoomOut" title="Zoom out">
+                <i class="bi bi-dash"></i>
+              </button>
+              <span class="zoom-text">{{ Math.round(zoomLevel * 100) }}%</span>
+              <button class="btn btn-sm btn-light border rounded-circle p-1 d-flex align-items-center justify-content-center"
+                style="width: 26px; height: 26px;" :disabled="zoomLevel >= MAX_ZOOM"
+                @click="zoomIn" title="Zoom in">
+                <i class="bi bi-plus"></i>
+              </button>
+              <button class="btn btn-sm btn-link text-decoration-none p-0" @click="resetZoom" title="Fit to screen">
+                <i class="bi bi-arrows-angle-expand" style="font-size: 12px;"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="right-sidebar">
+            <template v-if="activeTool === 'crop'">
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Crop</div>
+                <small class="text-muted d-block text-center mt-2">Drag to select crop area</small>
+              </div>
+            </template>
+
+            <template v-if="activeTool === 'rotate'">
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Rotation</div>
+                <div class="d-flex gap-2 justify-content-center mt-2">
+                  <button class="btn btn-sm btn-outline-primary" @click="handleRotateCCW" title="Rotate 90° CCW">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-primary" @click="handleRotateCW" title="Rotate 90° CW">
+                    <i class="bi bi-arrow-clockwise"></i>
+                  </button>
+                </div>
+                <div class="d-flex align-items-center gap-1 mt-2">
+                  <input type="number" class="form-control form-control-sm text-center" :value="rotation"
+                    min="0" max="360"
+                    @input="(e) => { const n = Number((e.target as HTMLInputElement).value); rotation = ((n % 360) + 360) % 360; dirty = true }"
+                    @change="setRotationFromInput(($event.target as HTMLInputElement).value)" />
+                  <small class="text-muted">deg</small>
+                </div>
+              </div>
+              <hr class="mx-3" />
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Flip</div>
+                <div class="d-flex gap-2 justify-content-center mt-2">
+                  <button class="btn btn-sm" :class="flipH ? 'btn-primary' : 'btn-outline-secondary'"
+                    @click="toggleFlipH" title="Flip horizontal">
+                    <i class="bi bi-arrow-left-right"></i>
+                  </button>
+                  <button class="btn btn-sm" :class="flipV ? 'btn-primary' : 'btn-outline-secondary'"
+                    @click="toggleFlipV" title="Flip vertical">
+                    <i class="bi bi-arrow-up-down"></i>
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <template v-if="activeTool === 'adjust'">
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Brightness</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <input type="range" class="form-range flex-grow-1" :min="20" :max="200" :step="1"
+                    :value="brightness" @input="handleBrightness(Number(($event.target as HTMLInputElement).value))" />
+                  <input type="number" class="form-control form-control-sm sidebar-input" :value="brightness"
+                    min="20" max="200"
+                    @input="handleBrightness(Math.max(20, Math.min(200, Number(($event.target as HTMLInputElement).value))))" />
+                  <small class="text-muted">%</small>
+                </div>
+              </div>
+              <hr class="mx-3" />
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Contrast</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <input type="range" class="form-range flex-grow-1" :min="20" :max="200" :step="1"
+                    :value="contrast" @input="handleContrast(Number(($event.target as HTMLInputElement).value))" />
+                  <input type="number" class="form-control form-control-sm sidebar-input" :value="contrast"
+                    min="20" max="200"
+                    @input="handleContrast(Math.max(20, Math.min(200, Number(($event.target as HTMLInputElement).value))))" />
+                  <small class="text-muted">%</small>
+                </div>
+              </div>
+              <hr class="mx-3" />
+              <div class="sidebar-section">
+                <div class="sidebar-section-title">Sharpness</div>
+                <div class="d-flex align-items-center gap-2 mt-1">
+                  <input type="range" class="form-range flex-grow-1" :min="0" :max="100" :step="1"
+                    :value="sharpness" @input="handleSharpness(Number(($event.target as HTMLInputElement).value))" />
+                  <input type="number" class="form-control form-control-sm sidebar-input" :value="sharpness"
+                    min="0" max="100"
+                    @input="handleSharpness(Math.max(0, Math.min(100, Number(($event.target as HTMLInputElement).value))))" />
+                </div>
+              </div>
+            </template>
           </div>
         </div>
 
-        <div class="right-sidebar">
-          <template v-if="activeTool === 'crop'">
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Crop</div>
-              <div class="text-caption text-grey mt-2 text-center">Drag to select crop area</div>
-            </div>
-          </template>
-
-          <template v-if="activeTool === 'rotate'">
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Rotation</div>
-              <div class="d-flex ga-2 justify-center mt-2">
-                <v-btn icon variant="tonal" size="small" color="primary" @click="handleRotateCCW" title="Rotate 90° CCW">
-                  <v-icon>mdi-rotate-left</v-icon>
-                </v-btn>
-                <v-btn icon variant="tonal" size="small" color="primary" @click="handleRotateCW" title="Rotate 90° CW">
-                  <v-icon>mdi-rotate-right</v-icon>
-                </v-btn>
+        <div class="modal-backdrop fade show" v-if="showConfirmClose"></div>
+        <div class="modal d-block" tabindex="-1" v-if="showConfirmClose">
+          <div class="modal-dialog modal-dialog-centered" style="max-width: 360px;">
+            <div class="modal-content border-0 shadow">
+              <div class="modal-body text-center p-4">
+                <div class="d-inline-flex align-items-center justify-content-center mb-3"
+                  style="width: 48px; height: 48px; border-radius: 50%; background: rgba(245,158,11,0.1);">
+                  <i class="bi bi-exclamation-circle" style="font-size: 24px; color: #F59E0B;"></i>
+                </div>
+                <h6 class="fw-semibold mb-1">Discard changes?</h6>
+                <p class="small text-muted mb-0">You have unsaved edits. Discard them?</p>
               </div>
-              <div class="d-flex align-center ga-2 mt-2">
-                <v-text-field v-model.number="rotation" type="number" min="0" max="360" hide-details
-                  density="compact" variant="outlined" class="angle-input"
-                  @update:model-value="(v: any) => { const n = Number(v); rotation = ((n % 360) + 360) % 360; dirty = true }"
-                  @blur="setRotationFromInput" />
-                <span class="text-caption text-grey">deg</span>
+              <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
+                <button class="btn btn-danger" @click="confirmClose">
+                  <i class="bi bi-x me-1"></i> Discard
+                </button>
+                <button class="btn btn-outline-secondary" @click="showConfirmClose = false">Keep editing</button>
               </div>
             </div>
-            <v-divider class="mx-3" />
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Flip</div>
-              <div class="d-flex ga-2 justify-center mt-2">
-                <v-btn icon variant="tonal" size="small" color="secondary" @click="toggleFlipH"
-                  :class="{ 'v-btn--active': flipH }" title="Flip horizontal">
-                  <v-icon>mdi-flip-horizontal</v-icon>
-                </v-btn>
-                <v-btn icon variant="tonal" size="small" color="secondary" @click="toggleFlipV"
-                  :class="{ 'v-btn--active': flipV }" title="Flip vertical">
-                  <v-icon>mdi-flip-vertical</v-icon>
-                </v-btn>
-              </div>
-            </div>
-          </template>
-
-          <template v-if="activeTool === 'adjust'">
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Brightness</div>
-              <div class="d-flex align-center ga-2 mt-1">
-                <v-slider v-model="brightness" :min="20" :max="200" :step="1"
-                  density="compact" hide-details class="sidebar-slider"
-                  @update:model-value="handleBrightness" />
-                <v-text-field v-model.number="brightness" type="number" min="20" max="200" hide-details
-                  density="compact" variant="outlined" class="sidebar-input"
-                  @update:model-value="(v: any) => handleBrightness(Math.max(20, Math.min(200, Number(v))))" />
-                <span class="text-caption text-grey" style="min-width:10px">%</span>
-              </div>
-            </div>
-            <v-divider class="mx-3" />
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Contrast</div>
-              <div class="d-flex align-center ga-2 mt-1">
-                <v-slider v-model="contrast" :min="20" :max="200" :step="1"
-                  density="compact" hide-details class="sidebar-slider"
-                  @update:model-value="handleContrast" />
-                <v-text-field v-model.number="contrast" type="number" min="20" max="200" hide-details
-                  density="compact" variant="outlined" class="sidebar-input"
-                  @update:model-value="(v: any) => handleContrast(Math.max(20, Math.min(200, Number(v))))" />
-                <span class="text-caption text-grey" style="min-width:10px">%</span>
-              </div>
-            </div>
-            <v-divider class="mx-3" />
-            <div class="sidebar-section">
-              <div class="sidebar-section-title">Sharpness</div>
-              <div class="d-flex align-center ga-2 mt-1">
-                <v-slider v-model="sharpness" :min="0" :max="100" :step="1"
-                  density="compact" hide-details class="sidebar-slider"
-                  @update:model-value="handleSharpness" />
-                <v-text-field v-model.number="sharpness" type="number" min="0" max="100" hide-details
-                  density="compact" variant="outlined" class="sidebar-input"
-                  @update:model-value="(v: any) => handleSharpness(Math.max(0, Math.min(100, Number(v))))" />
-              </div>
-            </div>
-          </template>
+          </div>
         </div>
       </div>
-
-      <v-dialog v-model="showConfirmClose" max-width="360">
-        <v-card>
-          <v-card-text class="pa-6 text-center">
-            <v-avatar color="warning" variant="tonal" size="48" class="mb-3">
-              <v-icon color="warning" size="28">mdi-alert-circle</v-icon>
-            </v-avatar>
-            <div class="text-body-1 font-weight-medium mb-1">Discard changes?</div>
-            <div class="text-body-2 text-grey">You have unsaved edits. Discard them?</div>
-          </v-card-text>
-          <v-card-actions class="pa-4 pt-0 justify-center ga-2">
-            <v-btn color="error" variant="tonal" prepend-icon="mdi-close" @click="confirmClose">
-              Discard
-            </v-btn>
-            <v-btn variant="text" @click="showConfirmClose = false">Keep editing</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
-    </v-card>
-  </v-dialog>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.editor-dialog {
-  display: flex;
-  flex-direction: column;
-  background: rgb(248, 250, 252);
-  height: 100%;
-}
-
-.editor-toolbar {
-  border-bottom: 1px solid rgb(226, 232, 240);
-  flex-shrink: 0;
-  padding: 0 8px;
-  z-index: 10;
-}
-
 .editor-body {
   flex: 1;
   display: flex;
   overflow: hidden;
   position: relative;
 }
-
 .tool-sidebar {
   width: 64px;
   flex-shrink: 0;
@@ -488,25 +476,24 @@ function handleWheel(e: WheelEvent) {
   padding: 12px 0;
   gap: 4px;
 }
-
-.tool-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
 .tool-btn {
   width: 52px;
   height: 52px;
   border-radius: 8px;
-  min-width: auto;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: background 0.12s;
+  color: #475569;
 }
-
-.tool-btn:hover {
-  background: rgba(30, 58, 95, 0.06);
-}
-
+.tool-btn:hover { background: rgba(30, 58, 95, 0.06); }
+.tool-btn.tool-active { color: #1E3A5F; background: rgba(30, 58, 95, 0.08); }
+.tool-btn:disabled { opacity: 0.5; cursor: default; }
 .tool-label {
   font-size: 9px;
   line-height: 1;
@@ -514,7 +501,6 @@ function handleWheel(e: WheelEvent) {
   text-transform: uppercase;
   margin-top: 2px;
 }
-
 .canvas-area {
   flex: 1;
   display: flex;
@@ -525,7 +511,6 @@ function handleWheel(e: WheelEvent) {
   overflow: hidden;
   min-height: 300px;
 }
-
 .cropper-wrapper {
   width: 100%;
   height: 100%;
@@ -533,12 +518,10 @@ function handleWheel(e: WheelEvent) {
   align-items: center;
   justify-content: center;
 }
-
 .cropper-component {
   width: 100%;
   height: 100%;
 }
-
 .zoom-pill {
   position: absolute;
   bottom: 16px;
@@ -554,7 +537,6 @@ function handleWheel(e: WheelEvent) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   z-index: 5;
 }
-
 .zoom-text {
   font-size: 12px;
   font-weight: 600;
@@ -563,7 +545,6 @@ function handleWheel(e: WheelEvent) {
   color: rgb(71, 85, 105);
   font-variant-numeric: tabular-nums;
 }
-
 .right-sidebar {
   width: 240px;
   flex-shrink: 0;
@@ -574,11 +555,7 @@ function handleWheel(e: WheelEvent) {
   overflow-y: auto;
   padding: 0;
 }
-
-.sidebar-section {
-  padding: 16px;
-}
-
+.sidebar-section { padding: 16px; }
 .sidebar-section-title {
   font-size: 11px;
   font-weight: 600;
@@ -587,50 +564,6 @@ function handleWheel(e: WheelEvent) {
   color: rgb(100, 116, 139);
   text-align: center;
 }
-
-.sidebar-slider {
-  flex: 1;
-  min-width: 0;
-}
-
-.sidebar-input {
-  width: 56px;
-  flex-shrink: 0;
-}
-
-:deep(.sidebar-input .v-field) {
-  min-height: 28px;
-  font-size: 12px;
-}
-
-:deep(.sidebar-input .v-field__input) {
-  padding: 2px 4px;
-  text-align: center;
-}
-
-:deep(.sidebar-input input) {
-  text-align: center;
-}
-
-.angle-input {
-  flex: 1;
-}
-
-:deep(.angle-input .v-field) {
-  min-height: 28px;
-  font-size: 13px;
-}
-
-:deep(.angle-input .v-field__input) {
-  padding: 2px 4px;
-  text-align: center;
-}
-
-:deep(.angle-input input) {
-  text-align: center;
-}
-
-:deep(.v-slider-track__background) {
-  opacity: 0.3;
-}
+.sidebar-input { width: 56px; flex-shrink: 0; text-align: center; }
+.form-range { height: 6px; }
 </style>

@@ -52,6 +52,13 @@ export class AuthController {
     return this.authService.getRecoveryCodes(user.id);
   }
 
+  @Get('recovery-codes/status')
+  @UseGuards(JwtAuthGuard)
+  async getRecoveryCodesStatus(@CurrentUser() user: any) {
+    const hasUnusedCodes = await this.authService.checkRecoveryCodesStatus(user.id);
+    return { hasUnusedCodes };
+  }
+
   @Post('recovery-codes')
   @UseGuards(JwtAuthGuard)
   async generateRecoveryCodes(@CurrentUser() user: any) {

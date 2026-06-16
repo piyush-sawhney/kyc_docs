@@ -31,12 +31,7 @@ const metadataDocId = ref<string | null>(null)
 const typeAddDialog = ref(false)
 const newTypeName = ref('')
 const addingType = ref(false)
-const errorSnackbar = ref(false)
 const errorMsg = ref('')
-function showError(msg: string) {
-  errorMsg.value = msg
-  errorSnackbar.value = true
-}
 
 const pdfConfigDialog = ref(false)
 const pdfGenerating = ref(false)
@@ -53,7 +48,7 @@ async function onUploadSave(blob: Blob, filename: string) {
 
 const autoCompleteItems = computed(() => [
   ...documentTypes.value,
-  { name: 'New Document Type', id: '__new__' },
+  { name: '+ New Document Type', id: '__new__' },
 ])
 
 interface NewRow {
@@ -152,7 +147,7 @@ async function executeDelete() {
     emit('needRefresh')
   } catch (err: any) {
     console.error('Failed to clear document image', err)
-    showError(err?.response?.data?.message || 'Failed to clear document image')
+    errorMsg.value = err?.response?.data?.message || 'Failed to clear document image'
     singleDeleteDialog.value = false
   }
   deleting.value = false
@@ -160,7 +155,6 @@ async function executeDelete() {
 
 async function executeBatchDelete() {
   try {
-    console.log('[BatchDelete] selected keys:', Object.keys(selected.value), 'groups count:', groups.value.length)
     const ids: string[] = []
     for (const g of groups.value) {
       if (g.documentGroupId && selected.value[g.documentGroupId]) {
@@ -168,7 +162,6 @@ async function executeBatchDelete() {
         if (g.back && !g.back.isDeleted) ids.push(g.back.id)
       }
     }
-    console.log('[BatchDelete] doc IDs to delete:', ids)
     if (ids.length === 0) {
       batchDeleteDialog.value = false
       clearSelection()
@@ -184,7 +177,7 @@ async function executeBatchDelete() {
     emit('needRefresh')
   } catch (err: any) {
     console.error('[BatchDelete] error:', err)
-    showError(err?.response?.data?.message || 'Failed to delete documents')
+    errorMsg.value = err?.response?.data?.message || 'Failed to delete documents'
     batchDeleteDialog.value = false
     clearSelection()
   }
@@ -200,7 +193,6 @@ async function handleGeneratePdf(config: PdfConfig) {
     }
   }
   if (docIds.length === 0) return
-
   pdfConfigDialog.value = false
   pdfGenerating.value = true
   try {
@@ -212,7 +204,7 @@ async function handleGeneratePdf(config: PdfConfig) {
     const images = blobs.map((blob) => ({ blob }))
     pdfBlob.value = await generatePdf(images, config)
   } catch (err: any) {
-    showError(err?.message || 'Failed to generate PDF')
+    errorMsg.value = err?.message || 'Failed to generate PDF'
   }
   pdfGenerating.value = false
 }
@@ -294,7 +286,8 @@ function cancelRow(nr: NewRow) {
   newRows.value = newRows.value.filter((r) => r._key !== nr._key)
 }
 
-function handleTypeChange(val: string | null, group?: any, nr?: NewRow) {
+function handleTypeChange(ev: Event, group?: any, nr?: NewRow) {
+  const val = (ev.target as HTMLSelectElement).value || null
   if (val === '__new__') {
     newTypeName.value = ''
     typeAddDialog.value = true
@@ -321,7 +314,7 @@ async function handleAddType() {
   addingType.value = false
 }
 
-function uploadForRow(nr: NewRow, side: 'front' | 'back') {
+function uploadForRow(nr: NewRow, sideVal: 'front' | 'back') {
   if (!nr.documentTypeId || !nr.documentNumber) return
   const input = document.createElement('input')
   input.type = 'file'
@@ -330,7 +323,7 @@ function uploadForRow(nr: NewRow, side: 'front' | 'back') {
     const file = input.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      showError('Only JPEG and PNG images are allowed')
+      errorMsg.value = 'Only JPEG and PNG images are allowed'
       return
     }
     editingUploadFile.value = file
@@ -339,7 +332,7 @@ function uploadForRow(nr: NewRow, side: 'front' | 'back') {
       fd.append('file', blob, filename)
       fd.append('documentTypeId', nr.documentTypeId!)
       fd.append('documentNumber', nr.documentNumber)
-      fd.append('side', side)
+      fd.append('side', sideVal)
       if (nr.expiryDate) fd.append('expiryDate', nr.expiryDate)
       try {
         await api.post(`/clients/${props.clientId}/documents`, fd, {
@@ -349,14 +342,14 @@ function uploadForRow(nr: NewRow, side: 'front' | 'back') {
         await load()
         emit('needRefresh')
       } catch (err: any) {
-        showError(err?.response?.data?.message || 'Failed to upload document')
+        errorMsg.value = err?.response?.data?.message || 'Failed to upload document'
       }
     }
   }
   input.click()
 }
 
-function uploadExisting(side: 'front' | 'back', groupId?: string) {
+function uploadExisting(sideVal: 'front' | 'back', groupId?: string) {
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = '.jpg,.jpeg,.png'
@@ -364,7 +357,7 @@ function uploadExisting(side: 'front' | 'back', groupId?: string) {
     const file = input.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      showError('Only JPEG and PNG images are allowed')
+      errorMsg.value = 'Only JPEG and PNG images are allowed'
       return
     }
     const existing = groups.value.find((g: any) => g.documentGroupId === groupId)
@@ -375,7 +368,7 @@ function uploadExisting(side: 'front' | 'back', groupId?: string) {
       fd.append('file', blob, filename)
       fd.append('documentTypeId', existing.documentType?.id || '')
       fd.append('documentNumber', existing.documentNumber || '')
-      fd.append('side', side)
+      fd.append('side', sideVal)
       if (groupId) fd.append('documentGroupId', groupId)
       const expiryDate = existing.front?.expiryDate || existing.back?.expiryDate
       if (expiryDate) fd.append('expiryDate', expiryDate)
@@ -386,7 +379,7 @@ function uploadExisting(side: 'front' | 'back', groupId?: string) {
         await load()
         emit('needRefresh')
       } catch (err: any) {
-        showError(err?.response?.data?.message || 'Failed to re-upload document')
+        errorMsg.value = err?.response?.data?.message || 'Failed to re-upload document'
       }
     }
   }
@@ -421,16 +414,16 @@ const revealTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 
 async function revealNumber(groupId: string, docId: string) {
   if (revealedNumbers.value[groupId]) return
-    try {
-      const { data } = await api.get(`/documents/${docId}/decrypt-number`)
-      revealedNumbers.value = { ...revealedNumbers.value, [groupId]: (data || '').toUpperCase() }
-      if (revealTimers[groupId]) clearTimeout(revealTimers[groupId])
-      revealTimers[groupId] = setTimeout(() => {
-        const next = { ...revealedNumbers.value }
-        delete next[groupId]
-        revealedNumbers.value = next
-      }, 5000)
-    } catch (err) { console.error('Failed to reveal number', err) }
+  try {
+    const { data } = await api.get(`/documents/${docId}/decrypt-number`)
+    revealedNumbers.value = { ...revealedNumbers.value, [groupId]: (data || '').toUpperCase() }
+    if (revealTimers[groupId]) clearTimeout(revealTimers[groupId])
+    revealTimers[groupId] = setTimeout(() => {
+      const next = { ...revealedNumbers.value }
+      delete next[groupId]
+      revealedNumbers.value = next
+    }, 5000)
+  } catch (err) { console.error('Failed to reveal number', err) }
 }
 
 function hideNumber(groupId: string) {
@@ -442,291 +435,301 @@ function hideNumber(groupId: string) {
 
 <template>
   <div>
-    <v-card class="rounded-xl" flat>
-      <div class="d-flex align-center px-5 py-2">
-        <v-spacer />
-        <v-fade-transition>
-          <v-chip v-if="selectedCount" color="primary" variant="tonal" size="small" label
-            closable @click:close="clearSelection" class="font-weight-medium">
-            {{ selectedCount }} selected
-          </v-chip>
-        </v-fade-transition>
-      </div>
-
-      <v-divider />
-
-      <v-table class="premium-table">
-        <thead>
-          <tr>
-            <th class="text-center col-check">
-              <v-checkbox :model-value="allSelected" @update:model-value="toggleSelectAll"
-                hide-details density="compact" color="primary" />
-            </th>
-            <th class="col-type">Document Type</th>
-            <th class="col-number">Document Number</th>
-            <th class="col-date">Expiry Date</th>
-            <th class="text-center col-side">Front</th>
-            <th class="text-center col-side">Back</th>
-            <th class="text-center col-meta"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="g in groups" :key="g.documentGroupId" class="premium-row"
-            :class="{ 'row-selected': selected[g.documentGroupId] }">
-            <td class="text-center col-check">
-              <v-checkbox :model-value="!!selected[g.documentGroupId]"
-                @update:model-value="toggleSelect(g.documentGroupId)"
-                hide-details density="compact" color="primary" />
-            </td>
-            <td class="col-type">
-              <v-autocomplete :model-value="g.documentType?.id || null"
-                @update:model-value="handleTypeChange($event, g, undefined)"
-                :items="autoCompleteItems" item-title="name" item-value="id"
-                variant="plain" density="compact" hide-details
-                color="primary" class="cell-input" />
-            </td>
-            <td class="col-number">
-              <div class="d-flex align-center ga-1">
-                <span class="number-masked text-body-2 font-weight-medium"
-                  :class="{ 'text-grey-darken-2': !revealedNumbers[g.documentGroupId], 'text-primary': revealedNumbers[g.documentGroupId] }">
-                  {{ revealedNumbers[g.documentGroupId] || '••••' + (g.documentNumber || '').toUpperCase() }}
-                </span>
-                <v-btn icon variant="text" size="x-small" color="grey"
-                  :title="revealedNumbers[g.documentGroupId] ? 'Hide number' : 'Reveal full number'"
-                  @click="revealedNumbers[g.documentGroupId] ? hideNumber(g.documentGroupId) : revealNumber(g.documentGroupId, getDocId(g))">
-                  <v-icon size="14" :color="revealedNumbers[g.documentGroupId] ? 'primary' : 'grey'">
-                    {{ revealedNumbers[g.documentGroupId] ? 'mdi-eye-off-outline' : 'mdi-eye-outline' }}
-                  </v-icon>
-                </v-btn>
-              </div>
-            </td>
-            <td class="col-date">
-              <div v-if="!isEditingDate(g, 'expiryDate')" class="editable-cell" @click="startEditDate(g, 'expiryDate')">
-                <span class="date-text">{{ formatDate(g.front?.expiryDate || g.back?.expiryDate) }}</span>
-                <v-icon size="11" color="grey-lighten-2" class="ml-1 edit-hint">mdi-pencil</v-icon>
-              </div>
-              <v-text-field v-else :model-value="editingDates[dateKey(g, 'expiryDate')]"
-                @update:model-value="updateDateEdit(g, 'expiryDate', $event)"
-                type="date" variant="plain" density="compact" hide-details
-                color="primary" autofocus class="cell-input"
-                @blur="saveDate(g, 'expiryDate')"
-                @change="saveDate(g, 'expiryDate')" />
-            </td>
-            <td class="text-center col-side">
-              <template v-if="g.front && !g.front.isDeleted && g.front.fileSize != null">
-                <div class="d-flex align-center justify-center ga-0 flex-nowrap">
-                  <v-chip color="success" variant="tonal" size="x-small" label class="flex-shrink-0 font-weight-medium px-1">
-                    <v-icon start size="11">mdi-check-circle</v-icon> Uploaded
-                  </v-chip>
-                  <v-btn icon variant="text" size="small" title="Re-upload"
-                    @click="uploadExisting('front', g.documentGroupId)">
-                    <v-icon size="18" color="primary">mdi-cloud-upload-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Edit image"
-                    @click="emit('editImage', g.front.id)">
-                    <v-icon size="18" color="info">mdi-image-edit-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Preview"
-                    @click="emit('previewImage', g.front.id, g.documentType?.name, g.documentNumber)">
-                    <v-icon size="18" color="accent">mdi-eye-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Download"
-                    @click="downloadDoc(g.front.id, `front_${g.documentNumber || g.documentGroupId}.jpg`)">
-                    <v-icon size="18" color="grey">mdi-download-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Delete"
-                    @click="requestDelete(g.front.id, 'Front')">
-                    <v-icon size="18" color="error">mdi-trash-can-outline</v-icon>
-                  </v-btn>
-                </div>
-              </template>
-              <template v-else>
-                <v-btn icon variant="tonal" size="small" color="primary" title="Upload Front"
-                  @click="uploadExisting('front', g.documentGroupId)">
-                  <v-icon size="18">mdi-cloud-upload</v-icon>
-                </v-btn>
-              </template>
-            </td>
-            <td class="text-center col-side">
-              <template v-if="g.back && !g.back.isDeleted && g.back.fileSize != null">
-                <div class="d-flex align-center justify-center ga-0 flex-nowrap">
-                  <v-chip color="success" variant="tonal" size="x-small" label class="flex-shrink-0 font-weight-medium px-1">
-                    <v-icon start size="11">mdi-check-circle</v-icon> Uploaded
-                  </v-chip>
-                  <v-btn icon variant="text" size="small" title="Re-upload"
-                    @click="uploadExisting('back', g.documentGroupId)">
-                    <v-icon size="18" color="primary">mdi-cloud-upload-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Edit image"
-                    @click="emit('editImage', g.back.id)">
-                    <v-icon size="18" color="info">mdi-image-edit-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Preview"
-                    @click="emit('previewImage', g.back.id, g.documentType?.name, g.documentNumber)">
-                    <v-icon size="18" color="accent">mdi-eye-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Download"
-                    @click="downloadDoc(g.back.id, `back_${g.documentNumber || g.documentGroupId}.jpg`)">
-                    <v-icon size="18" color="grey">mdi-download-outline</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" title="Delete"
-                    @click="requestDelete(g.back.id, 'Back')">
-                    <v-icon size="18" color="error">mdi-trash-can-outline</v-icon>
-                  </v-btn>
-                </div>
-              </template>
-              <template v-else>
-                <v-btn icon variant="tonal" size="small" color="primary" title="Upload Back"
-                  @click="uploadExisting('back', g.documentGroupId)">
-                  <v-icon size="18">mdi-cloud-upload</v-icon>
-                </v-btn>
-              </template>
-            </td>
-            <td class="text-center col-meta">
-              <v-btn icon variant="text" size="small" title="Metadata"
-                @click="metadataDocId = getDocId(g)">
-                <v-icon size="18" color="grey-lighten-1">mdi-information-outline</v-icon>
-              </v-btn>
-            </td>
-          </tr>
-
-          <tr v-for="nr in newRows" :key="nr._key" class="new-row">
-            <td class="col-check"></td>
-            <td class="col-type">
-              <v-autocomplete v-model="nr.documentTypeId"
-                @update:model-value="handleTypeChange($event, undefined, nr)"
-                :items="autoCompleteItems" item-title="name" item-value="id"
-                variant="outlined" density="compact" hide-details
-                color="primary" placeholder="Select type" />
-            </td>
-            <td class="col-number">
-              <div class="d-flex flex-column">
-                <v-text-field v-model="nr.documentNumber" variant="outlined"
-                  density="compact" hide-details placeholder="Document number"
-                  :error="!!nr.dupWarning" color="primary"
-                  @input="onDocNumberInput(nr)" />
-                <div v-if="nr.dupWarning" class="d-flex align-center ga-1 mt-1">
-                  <v-icon color="warning" size="12">mdi-alert</v-icon>
-                  <span class="text-caption text-warning">{{ nr.dupWarning }}</span>
-                </div>
-              </div>
-            </td>
-            <td class="col-date">
-              <v-text-field v-model="nr.expiryDate" type="date" variant="outlined"
-                density="compact" hide-details color="primary" />
-            </td>
-            <td class="text-center col-side">
-              <v-btn icon variant="tonal" size="small" color="primary" title="Upload Front"
-                @click="uploadForRow(nr, 'front')"
-                :disabled="!nr.documentTypeId || !nr.documentNumber">
-                <v-icon size="18">mdi-cloud-upload</v-icon>
-              </v-btn>
-            </td>
-            <td class="text-center col-side">
-              <v-btn icon variant="tonal" size="small" color="primary" title="Upload Back"
-                @click="uploadForRow(nr, 'back')"
-                :disabled="!nr.documentTypeId || !nr.documentNumber">
-                <v-icon size="18">mdi-cloud-upload</v-icon>
-              </v-btn>
-            </td>
-            <td class="text-center col-meta">
-              <v-btn icon variant="text" color="grey" size="small" title="Cancel"
-                @click="cancelRow(nr)">
-                <v-icon size="18">mdi-close</v-icon>
-              </v-btn>
-            </td>
-          </tr>
-
-          <tr v-if="groups.length === 0 && newRows.length === 0">
-            <td colspan="7">
-              <div class="d-flex flex-column align-center pa-10">
-                <v-icon size="44" class="mb-3 text-grey-lighten-2">mdi-file-document-outline</v-icon>
-                <div class="text-body-2 text-grey font-weight-medium">No documents yet</div>
-                <div class="text-caption text-grey mt-1">
-                  {{ props.clientId ? 'Click "Add Row" below to get started' : 'Select a client from the sidebar' }}
-                </div>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-
-      <v-divider />
-
-      <div class="d-flex align-center px-5 py-3">
-                <div class="d-flex align-center ga-2">
-          <v-btn color="primary" variant="tonal" size="default" class="px-4 font-weight-medium"
-            prepend-icon="mdi-plus" @click.stop="addRow">
-            Add Row
-          </v-btn>
-          <v-btn color="error" variant="tonal" size="default" class="px-4 font-weight-medium"
-            prepend-icon="mdi-delete-outline"
-            :disabled="selectedCount === 0" @click="batchDeleteDialog = true">
-            Delete
-          </v-btn>
-          <v-btn color="primary" variant="tonal" size="default" class="px-4 font-weight-medium"
-            prepend-icon="mdi-file-pdf-box"
-            :disabled="selectedCount === 0" :loading="pdfGenerating"
-            @click="pdfConfigDialog = true">
-            Generate PDF
-          </v-btn>
+    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+      <div class="d-flex align-items-center px-3 py-1 border-bottom">
+        <div class="ms-auto">
+          <span v-if="selectedCount" class="badge bg-soft-primary me-2">{{ selectedCount }} selected</span>
         </div>
       </div>
-    </v-card>
+
+      <div class="table-wrapper">
+        <table class="table mb-0" style="min-width: 994px;">
+          <thead>
+            <tr>
+              <th class="col-check text-center">
+                <input type="checkbox" class="form-check-input m-0 position-static" :checked="allSelected"
+                  @change="toggleSelectAll" />
+              </th>
+              <th style="width: 170px;">Document Type</th>
+              <th style="width: 170px;">Document Number</th>
+              <th style="width: 130px;">Expiry Date</th>
+              <th class="text-center" style="width: 220px;">Front</th>
+              <th class="text-center" style="width: 220px;">Back</th>
+              <th class="text-center" style="width: 44px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="g in groups" :key="g.documentGroupId"
+              :class="{ 'row-selected': selected[g.documentGroupId] }">
+              <td class="col-check text-center">
+                <input type="checkbox" class="form-check-input m-0 position-static"
+                  :checked="!!selected[g.documentGroupId]"
+                  @change="toggleSelect(g.documentGroupId)" />
+              </td>
+              <td>
+                <select class="form-select form-select-sm border-0 bg-transparent px-1"
+                  :value="g.documentType?.id || ''"
+                  @change="handleTypeChange($event, g, undefined)">
+                  <option value="" disabled>Select type</option>
+                  <option v-for="t in documentTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  <option disabled>──────────</option>
+                  <option value="__new__">+ New Document Type</option>
+                </select>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-1">
+                  <span class="number-masked small fw-medium"
+                    :class="revealedNumbers[g.documentGroupId] ? 'text-primary' : ''">
+                    {{ revealedNumbers[g.documentGroupId] || '••••' + (g.documentNumber || '').toUpperCase() }}
+                  </span>
+                  <button class="btn btn-sm btn-link text-decoration-none p-0"
+                    :title="revealedNumbers[g.documentGroupId] ? 'Hide number' : 'Reveal full number'"
+                    @click="revealedNumbers[g.documentGroupId] ? hideNumber(g.documentGroupId) : revealNumber(g.documentGroupId, getDocId(g))">
+                    <i class="bi" :class="revealedNumbers[g.documentGroupId] ? 'bi-eye-slash' : 'bi-eye'"
+                      :style="{ color: revealedNumbers[g.documentGroupId] ? '#1E3A5F' : '#94A3B8', fontSize: '12px' }"></i>
+                  </button>
+                </div>
+              </td>
+              <td>
+                <div v-if="!isEditingDate(g, 'expiryDate')" class="editable-cell" @click="startEditDate(g, 'expiryDate')">
+                  <span class="date-text">{{ formatDate(g.front?.expiryDate || g.back?.expiryDate) }}</span>
+                  <i class="bi bi-pencil ms-1 edit-hint" style="font-size: 10px; color: #CBD5E1;"></i>
+                </div>
+                <input v-else type="date" class="form-control form-control-sm"
+                  :value="editingDates[dateKey(g, 'expiryDate')]"
+                  @input="updateDateEdit(g, 'expiryDate', ($event.target as HTMLInputElement).value)"
+                  @blur="saveDate(g, 'expiryDate')"
+                  @change="saveDate(g, 'expiryDate')" autofocus />
+              </td>
+              <td class="text-center">
+                <template v-if="g.front && !g.front.isDeleted && g.front.fileSize != null">
+                  <div class="d-flex align-items-center justify-content-center gap-0 flex-nowrap">
+                    <span class="badge bg-soft-success me-1" style="font-size: 10px;">
+                      <i class="bi bi-check-circle me-1" style="font-size: 9px;"></i> Uploaded
+                    </span>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Re-upload"
+                      @click="uploadExisting('front', g.documentGroupId)">
+                      <i class="bi bi-cloud-upload" style="color: #1E3A5F; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Edit image"
+                      @click="emit('editImage', g.front.id)">
+                      <i class="bi bi-pencil-square" style="color: #0284C7; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Preview"
+                      @click="emit('previewImage', g.front.id, g.documentType?.name, g.documentNumber)">
+                      <i class="bi bi-eye" style="color: #6366F1; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Download"
+                      @click="downloadDoc(g.front.id, `front_${g.documentNumber || g.documentGroupId}.jpg`)">
+                      <i class="bi bi-download" style="color: #64748B; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Delete"
+                      @click="requestDelete(g.front.id, 'Front')">
+                      <i class="bi bi-trash" style="color: #DC2626; font-size: 14px;"></i>
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <button class="btn btn-sm btn-outline-primary" title="Upload Front"
+                    @click="uploadExisting('front', g.documentGroupId)">
+                    <i class="bi bi-cloud-upload"></i>
+                  </button>
+                </template>
+              </td>
+              <td class="text-center">
+                <template v-if="g.back && !g.back.isDeleted && g.back.fileSize != null">
+                  <div class="d-flex align-items-center justify-content-center gap-0 flex-nowrap">
+                    <span class="badge bg-soft-success me-1" style="font-size: 10px;">
+                      <i class="bi bi-check-circle me-1" style="font-size: 9px;"></i> Uploaded
+                    </span>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Re-upload"
+                      @click="uploadExisting('back', g.documentGroupId)">
+                      <i class="bi bi-cloud-upload" style="color: #1E3A5F; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Edit image"
+                      @click="emit('editImage', g.back.id)">
+                      <i class="bi bi-pencil-square" style="color: #0284C7; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Preview"
+                      @click="emit('previewImage', g.back.id, g.documentType?.name, g.documentNumber)">
+                      <i class="bi bi-eye" style="color: #6366F1; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Download"
+                      @click="downloadDoc(g.back.id, `back_${g.documentNumber || g.documentGroupId}.jpg`)">
+                      <i class="bi bi-download" style="color: #64748B; font-size: 14px;"></i>
+                    </button>
+                    <button class="btn btn-sm btn-link text-decoration-none p-0 px-1" title="Delete"
+                      @click="requestDelete(g.back.id, 'Back')">
+                      <i class="bi bi-trash" style="color: #DC2626; font-size: 14px;"></i>
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <button class="btn btn-sm btn-outline-primary" title="Upload Back"
+                    @click="uploadExisting('back', g.documentGroupId)">
+                    <i class="bi bi-cloud-upload"></i>
+                  </button>
+                </template>
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-link text-decoration-none p-0" title="Metadata"
+                  @click="metadataDocId = getDocId(g)">
+                  <i class="bi bi-info-circle" style="color: #CBD5E1; font-size: 14px;"></i>
+                </button>
+              </td>
+            </tr>
+
+            <tr v-for="nr in newRows" :key="nr._key" class="new-row">
+              <td></td>
+              <td>
+                <select class="form-select form-select-sm" v-model="nr.documentTypeId"
+                  @change="handleTypeChange($event, undefined, nr)">
+                  <option value="" disabled>Select type</option>
+                  <option v-for="t in documentTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  <option disabled>──────────</option>
+                  <option value="__new__">+ New Document Type</option>
+                </select>
+              </td>
+              <td>
+                <div>
+                  <input type="text" class="form-control form-control-sm" v-model="nr.documentNumber"
+                    placeholder="Document number" :class="{ 'is-invalid': !!nr.dupWarning }"
+                    @input="onDocNumberInput(nr)" />
+                  <div v-if="nr.dupWarning" class="invalid-feedback d-block small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>{{ nr.dupWarning }}
+                  </div>
+                </div>
+              </td>
+              <td>
+                <input type="date" class="form-control form-control-sm" v-model="nr.expiryDate" />
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary" title="Upload Front"
+                  :disabled="!nr.documentTypeId || !nr.documentNumber"
+                  @click="uploadForRow(nr, 'front')">
+                  <i class="bi bi-cloud-upload"></i>
+                </button>
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary" title="Upload Back"
+                  :disabled="!nr.documentTypeId || !nr.documentNumber"
+                  @click="uploadForRow(nr, 'back')">
+                  <i class="bi bi-cloud-upload"></i>
+                </button>
+              </td>
+              <td class="text-center">
+                <button class="btn btn-sm btn-link text-decoration-none p-0 text-muted" title="Cancel"
+                  @click="cancelRow(nr)">
+                  <i class="bi bi-x" style="font-size: 16px;"></i>
+                </button>
+              </td>
+            </tr>
+
+            <tr v-if="groups.length === 0 && newRows.length === 0">
+              <td colspan="7">
+                <div class="empty-state">
+                  <i class="bi bi-file-earmark-text"></i>
+                  <p class="small text-muted fw-medium mb-1">No documents yet</p>
+                  <p class="small text-muted mb-0">
+                    {{ props.clientId ? 'Click "Add Row" below to get started' : 'Select a client from the sidebar' }}
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="d-flex align-items-center px-3 py-2 border-top">
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-primary" @click="addRow">
+            <i class="bi bi-plus me-1"></i> Add Row
+          </button>
+          <button class="btn btn-sm btn-outline-danger" :disabled="selectedCount === 0"
+            @click="batchDeleteDialog = true">
+            <i class="bi bi-trash me-1"></i> Delete
+          </button>
+          <button class="btn btn-sm btn-outline-primary" :disabled="selectedCount === 0 || pdfGenerating"
+            @click="pdfConfigDialog = true">
+            <span v-if="pdfGenerating" class="spinner-border spinner-border-sm me-1"></span>
+            <i class="bi bi-filetype-pdf me-1"></i> Generate PDF
+          </button>
+        </div>
+      </div>
+    </div>
 
     <MetadataDialog v-if="metadataDocId" :document-id="metadataDocId"
       @close="metadataDocId = null" />
 
-    <v-dialog v-model="singleDeleteDialog" max-width="380">
-      <v-card>
-        <v-card-text class="pa-6 text-center">
-          <v-avatar color="error" variant="tonal" size="48" class="mb-3">
-            <v-icon color="error" size="28">mdi-alert-circle</v-icon>
-          </v-avatar>
-          <div class="text-body-1 font-weight-medium mb-1">Delete {{ deleteSide }} Document</div>
-          <div class="text-body-2 text-grey">This will permanently delete this image. This cannot be undone.</div>
-        </v-card-text>
-        <v-card-actions class="pa-4 pt-0 justify-center ga-2">
-          <v-btn color="error" @click="executeDelete" :loading="deleting"
-            prepend-icon="mdi-delete" variant="tonal">Delete</v-btn>
-          <v-btn variant="text" @click="singleDeleteDialog = false">Cancel</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
-    <v-dialog v-model="batchDeleteDialog" max-width="380">
-      <v-card>
-        <v-card-text class="pa-6 text-center">
-          <v-avatar color="error" variant="tonal" size="48" class="mb-3">
-            <v-icon color="error" size="28">mdi-alert-circle</v-icon>
-          </v-avatar>
-          <div class="text-body-1 font-weight-medium mb-1">Delete Documents</div>
-          <div class="text-body-2 text-grey">
-            Delete {{ selectedCount }} document row(s) permanently? This cannot be undone.
+    <div class="modal-backdrop fade show" v-if="singleDeleteDialog"></div>
+    <div class="modal d-block" tabindex="-1" v-if="singleDeleteDialog">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-body text-center p-4">
+            <div class="d-inline-flex align-items-center justify-content-center mb-3"
+              style="width: 48px; height: 48px; border-radius: 50%; background: rgba(220,38,38,0.1);">
+              <i class="bi bi-exclamation-circle" style="font-size: 24px; color: #DC2626;"></i>
+            </div>
+            <h6 class="fw-semibold mb-1">Delete {{ deleteSide }} Document</h6>
+            <p class="small text-muted mb-0">This will permanently delete this image. This cannot be undone.</p>
           </div>
-        </v-card-text>
-        <v-card-actions class="pa-4 pt-0 justify-center ga-2">
-          <v-btn color="error" @click="executeBatchDelete" :loading="deleting"
-            prepend-icon="mdi-delete" variant="tonal">Delete</v-btn>
-          <v-btn variant="text" @click="batchDeleteDialog = false">Cancel</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
+            <button class="btn btn-danger" :disabled="deleting" @click="executeDelete">
+              <span v-if="deleting" class="spinner-border spinner-border-sm me-1"></span>
+              <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button class="btn btn-outline-secondary" @click="singleDeleteDialog = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <v-dialog v-model="typeAddDialog" max-width="400">
-      <v-card class="pa-2">
-        <v-card-title class="pa-4 pb-2">Add Document Type</v-card-title>
-        <v-card-text class="pa-4 pt-0">
-          <v-text-field v-model="newTypeName" label="Document Type Name"
-            autofocus @keyup.enter="handleAddType" />
-        </v-card-text>
-        <v-card-actions class="pa-4 pt-0">
-          <v-btn color="primary" :loading="addingType" @click="handleAddType"
-            prepend-icon="mdi-check" variant="tonal">Create</v-btn>
-          <v-btn variant="text" @click="typeAddDialog = false">Cancel</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <div class="modal-backdrop fade show" v-if="batchDeleteDialog"></div>
+    <div class="modal d-block" tabindex="-1" v-if="batchDeleteDialog">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-body text-center p-4">
+            <div class="d-inline-flex align-items-center justify-content-center mb-3"
+              style="width: 48px; height: 48px; border-radius: 50%; background: rgba(220,38,38,0.1);">
+              <i class="bi bi-exclamation-circle" style="font-size: 24px; color: #DC2626;"></i>
+            </div>
+            <h6 class="fw-semibold mb-1">Delete Documents</h6>
+            <p class="small text-muted mb-0">
+              Delete {{ selectedCount }} document row(s) permanently? This cannot be undone.
+            </p>
+          </div>
+          <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
+            <button class="btn btn-danger" :disabled="deleting" @click="executeBatchDelete">
+              <span v-if="deleting" class="spinner-border spinner-border-sm me-1"></span>
+              <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button class="btn btn-outline-secondary" @click="batchDeleteDialog = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop fade show" v-if="typeAddDialog"></div>
+    <div class="modal d-block" tabindex="-1" v-if="typeAddDialog">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-header border-0 pb-0">
+            <h6 class="fw-bold mb-0">Add Document Type</h6>
+          </div>
+          <div class="modal-body">
+            <input type="text" class="form-control" v-model="newTypeName"
+              placeholder="Document Type Name" @keyup.enter="handleAddType" autofocus />
+          </div>
+          <div class="modal-footer border-0 pt-0">
+            <button class="btn btn-primary" :disabled="addingType" @click="handleAddType">
+              <span v-if="addingType" class="spinner-border spinner-border-sm me-1"></span>
+              <i class="bi bi-check me-1"></i> Create
+            </button>
+            <button class="btn btn-outline-secondary" @click="typeAddDialog = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <ImageEditor v-if="editingUploadFile" :image-src="editingUploadFile"
       @close="editingUploadFile = null; editingUploadCb = null"
@@ -738,94 +741,39 @@ function hideNumber(groupId: string) {
     <PdfPreviewDialog v-if="pdfBlob" :pdf-blob="pdfBlob"
       @close="pdfBlob = null" />
 
-    <v-snackbar v-model="errorSnackbar" color="error" variant="tonal" location="top" :timeout="4000">
-      {{ errorMsg }}
-    </v-snackbar>
+    <div v-if="errorMsg" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060;">
+      <div class="toast show align-items-center text-bg-danger border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">{{ errorMsg }}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" @click="errorMsg = ''"></button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.premium-table {
-  border: none;
-  font-size: 13px;
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
-
-.premium-table thead th {
-  background: rgb(248, 250, 252);
-  border-bottom: 1px solid rgb(226, 232, 240) !important;
-  padding: 10px 14px !important;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: 10.5px;
-  color: rgb(100, 116, 139);
-  font-weight: 600;
-  vertical-align: middle;
+.table-wrapper {
+  overflow: clip;
 }
-
-.premium-table tbody td {
-  padding: 8px 14px !important;
-  border-bottom: 1px solid rgb(241, 245, 249);
-  vertical-align: middle;
+.table tbody tr.row-selected {
+  background: rgba(var(--bs-primary-rgb), 0.05);
 }
-
-.premium-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.premium-row {
-  transition: background 0.12s ease;
-}
-
-.premium-row:hover {
-  background: rgba(30, 58, 95, 0.025);
-}
-
-.premium-row.row-selected {
-  background: rgba(30, 58, 95, 0.05);
-}
-
 .new-row td {
-  background: rgba(30, 58, 95, 0.03);
-  border-bottom: 1px solid rgba(30, 58, 95, 0.08) !important;
+  background: rgba(var(--bs-primary-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.08) !important;
 }
-
-.col-check { width: 36px; min-width: 36px; }
-.col-type { width: 170px; min-width: 160px; }
-.col-number { width: 170px; min-width: 150px; }
-.col-date { width: 130px; min-width: 120px; }
-.col-side { width: 220px; min-width: 200px; }
-.col-meta { width: 44px; min-width: 44px; }
-
 .number-masked {
   font-family: 'Inter', monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-
-:deep(.cell-input) {
-  font-size: 13px;
-}
-
-:deep(.cell-input .v-field) {
-  min-height: 28px;
-  box-shadow: none;
-}
-
-:deep(.cell-input .v-field__input) {
-  padding: 1px 4px;
-  min-height: 24px;
-  font-size: 13px;
-}
-
-:deep(.cell-input .v-field__overlay) {
-  background: transparent;
-}
-
-:deep(.cell-input:hover .v-field__overlay) {
-  background: rgba(30, 58, 95, 0.035);
-}
-
 .editable-cell {
   display: flex;
   align-items: center;
@@ -835,11 +783,9 @@ function hideNumber(groupId: string) {
   min-height: 28px;
   transition: background 0.12s ease;
 }
-
 .editable-cell:hover {
   background: rgba(30, 58, 95, 0.05);
 }
-
 .date-text {
   font-family: 'Inter', monospace;
   font-size: 13px;
@@ -848,13 +794,17 @@ function hideNumber(groupId: string) {
   letter-spacing: 0.03em;
   font-variant-numeric: tabular-nums;
 }
-
 .edit-hint {
   opacity: 0;
   transition: opacity 0.12s ease;
 }
-
 .editable-cell:hover .edit-hint {
   opacity: 1;
+}
+.form-select-sm {
+  font-size: 13px;
+}
+.form-control-sm {
+  font-size: 13px;
 }
 </style>

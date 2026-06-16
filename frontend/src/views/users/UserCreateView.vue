@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api/client'
+import PasswordField from '../../components/PasswordField.vue'
 
 const router = useRouter()
 const email = ref('')
@@ -26,30 +27,42 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div>
-    <div class="text-h5 font-weight-bold mb-1">Create User</div>
-    <div class="text-body-2 text-grey mb-6">Add a new user to the system</div>
+  <div class="p-4" style="background: #F1F5F9; min-height: calc(100vh - 56px);">
+    <h5 class="fw-bold mb-1" style="color: #1E293B;">Create User</h5>
+    <p class="text-muted small mb-3">Add a new user to the system</p>
 
-    <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" closable>
-      {{ error }}
-    </v-alert>
+    <div v-if="error" class="alert alert-danger py-2 px-3 small mb-3">{{ error }}</div>
 
-    <v-card max-width="520">
-      <v-card-text>
-        <v-form @submit.prevent="handleSubmit">
-          <v-text-field v-model="fullName" label="Full Name" :disabled="loading" class="mb-3" />
-          <v-text-field v-model="email" label="Email" type="email" :disabled="loading" class="mb-3" />
-          <v-text-field v-model="password" label="Password" type="password" :disabled="loading" class="mb-3" />
-          <v-select v-model="role" :items="['user', 'admin']" label="Role" :disabled="loading" class="mb-4" />
-
-          <div class="d-flex ga-3">
-            <v-btn type="submit" color="primary" :loading="loading" prepend-icon="mdi-check">
-              Create User
-            </v-btn>
-            <v-btn variant="outlined" @click="router.push('/users')">Cancel</v-btn>
+    <div class="card border-0 shadow-sm" style="max-width: 520px; border-radius: 12px;">
+      <div class="card-body">
+        <form @submit.prevent="handleSubmit">
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" class="form-control" v-model="fullName" :disabled="loading" />
           </div>
-        </v-form>
-      </v-card-text>
-    </v-card>
+          <div class="mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" v-model="email" :disabled="loading" />
+          </div>
+          <div class="mb-3">
+            <PasswordField v-model="password" label="Password" :disabled="loading" show-strength />
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Role</label>
+            <select class="form-select" v-model="role" :disabled="loading">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+              <i class="bi bi-check me-1"></i> Create User
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @click="router.push('/users')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>

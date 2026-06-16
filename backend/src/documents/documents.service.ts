@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
-import { eq, desc, and, inArray, like } from 'drizzle-orm';
+import { eq, desc, and, inArray, like, not } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as crypto from 'crypto';
 import * as schema from '../database/schema';
@@ -74,10 +74,24 @@ export class DocumentsService {
       })
       .returning();
 
-    return { ...this.sanitize(doc), documentGroupId: groupId };
+    const [docType] = await this.db
+      .select({ name: documentTypes.name })
+      .from(documentTypes)
+      .where(eq(documentTypes.id, documentTypeId))
+      .limit(1);
+
+    return { ...this.sanitize(doc), documentGroupId: groupId, documentTypeName: docType?.name || 'document' };
   }
 
   async findGroupedByClient(clientId: string) {
+    const [client] = await this.db
+      .select()
+      .from(clients)
+      .where(and(eq(clients.id, clientId), eq(clients.isDeleted, false)))
+      .limit(1);
+
+    if (!client) throw new NotFoundException('Client not found');
+
     const docs = await this.db
       .select()
       .from(clientDocuments)

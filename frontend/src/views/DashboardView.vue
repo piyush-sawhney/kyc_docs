@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../api/client'
 import ClientSidebar from '../components/ClientSidebar.vue'
 import DocumentTable from '../components/DocumentTable.vue'
@@ -22,12 +23,17 @@ const nameInputRef = ref<HTMLElement | null>(null)
 const sidebarWidth = ref(280)
 const deleteClientDialog = ref(false)
 const deleteClientLoading = ref(false)
-const errorSnackbar = ref(false)
 const errorMsg = ref('')
-function showError(msg: string) {
-  errorMsg.value = msg
-  errorSnackbar.value = true
-}
+const sidebarKey = ref(0)
+const route = useRoute()
+const router = useRouter()
+
+onMounted(() => {
+  if (route.query.selectClient) {
+    selectedClientId.value = route.query.selectClient as string
+    router.replace({ query: {} })
+  }
+})
 
 watch(selectedClientId, async (id) => {
   if (!id) { clientInfo.value = null; return }
@@ -78,7 +84,7 @@ async function onImageSave(blob: Blob, filename: string) {
     })
   } catch (err) {
     console.error('Failed to save edited image', err)
-    showError('Failed to save image')
+    errorMsg.value = 'Failed to save image'
   }
 }
 
@@ -142,9 +148,10 @@ async function confirmDeleteClient() {
     selectedClientId.value = null
     clientInfo.value = null
     activeDocCount.value = 0
+    sidebarKey.value++
   } catch (err: any) {
     console.error('Failed to delete client', err)
-    showError(err?.response?.data?.message || 'Failed to delete client')
+    errorMsg.value = err?.response?.data?.message || 'Failed to delete client'
     deleteClientDialog.value = false
   }
   deleteClientLoading.value = false
@@ -174,57 +181,72 @@ function onResizeEnd() {
 
 <template>
   <div class="dashboard-layout">
-    <v-card class="sidebar-card border rounded-xl" :style="{ width: sidebarWidth + 'px' }">
-      <ClientSidebar :selected-client-id="selectedClientId" @select="onSelectClient" />
-    </v-card>
+    <div class="card border-0 shadow-sm sidebar-card" :style="{ width: sidebarWidth + 'px' }">
+      <ClientSidebar :key="sidebarKey" :selected-client-id="selectedClientId" @select="onSelectClient" />
+    </div>
 
     <div class="resize-handle" @mousedown.prevent="onResizeStart" />
 
     <div class="flex-grow-1 d-flex flex-column content-area">
       <div v-if="clientInfo" class="flex-shrink-0 mb-3">
-        <v-card class="rounded-xl px-5 py-4" flat>
-          <div class="d-flex align-center">
-            <div class="d-flex align-center ga-4">
-              <v-avatar size="56" color="primary" variant="tonal" class="cursor-pointer" @click="handleAvatarClick">
-                <v-img v-if="clientInfo.avatar" :src="clientInfo.avatar" cover />
-                <v-icon v-else size="28" color="primary">mdi-account</v-icon>
-                <v-btn icon size="x-small" color="primary" variant="tonal"
-                  class="avatar-edit-btn" title="Update photo">
-                  <v-icon size="12">mdi-camera</v-icon>
-                </v-btn>
-              </v-avatar>
-                <div v-if="!editingName" class="d-flex align-center ga-2">
-                  <div class="text-h5 font-weight-semibold text-grey-darken-3">{{ clientInfo.name }}</div>
-                  <v-btn icon variant="text" size="small" color="grey" title="Edit name"
-                    @click="startEditName">
-                    <v-icon size="16">mdi-pencil</v-icon>
-                  </v-btn>
-                  <v-btn icon variant="text" size="small" color="error" title="Delete client"
-                    @click="openDeleteClient">
-                    <v-icon size="16">mdi-delete-outline</v-icon>
-                  </v-btn>
+        <div class="card border-0 shadow-sm px-4 py-3" style="border-radius: 12px;">
+          <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center gap-3">
+              <div class="position-relative cursor-pointer" @click="handleAvatarClick" style="cursor: pointer;">
+                <div class="avatar-initials" style="width: 56px; height: 56px; font-size: 22px; background: rgba(30,58,95,0.08); color: #1E3A5F;">
+                  <img v-if="clientInfo.avatar" :src="clientInfo.avatar" class="w-100 h-100 rounded-3" style="object-fit: cover;" />
+                  <i v-else class="bi bi-person" style="font-size: 28px;"></i>
                 </div>
-              <div v-else class="d-flex align-center ga-2">
-                <v-text-field ref="nameInputRef" v-model="editNameValue" variant="outlined"
-                  density="compact" hide-details single-line class="name-input"
-                  :loading="editNameLoading"
-                  @keyup.enter="saveName" @keyup.escape="cancelEditName" @blur="saveName" />
+                <button class="avatar-edit-btn btn btn-sm btn-light rounded-circle p-1 border shadow-sm"
+                  title="Update photo">
+                  <i class="bi bi-camera" style="font-size: 10px;"></i>
+                </button>
+              </div>
+              <div v-if="!editingName" class="d-flex align-items-center gap-2">
+                <h5 class="fw-semibold mb-0" style="color: #1E293B;">{{ clientInfo.name }}</h5>
+                <button class="btn btn-sm btn-soft-secondary border-0" title="Edit name" @click="startEditName">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn btn-sm btn-soft-danger border-0" title="Delete client" @click="openDeleteClient">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div v-else class="d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="max-width: 240px;">
+                  <input ref="nameInputRef" type="text" class="form-control" v-model="editNameValue"
+                    :disabled="editNameLoading" @keyup.enter="saveName" @keyup.escape="cancelEditName" @blur="saveName" />
+                  <span v-if="editNameLoading" class="input-group-text"><span class="spinner-border spinner-border-sm"></span></span>
+                </div>
               </div>
             </div>
-            <v-spacer />
-            <div class="d-flex align-center ga-4">
+            <div class="ms-auto">
               <div class="text-center">
-                <div class="text-h6 font-weight-bold text-primary">{{ activeDocCount }}</div>
-                <div class="text-caption text-grey font-weight-medium">Active Documents</div>
+                <div class="fw-bold" style="font-size: 20px; color: #1E3A5F;">{{ activeDocCount }}</div>
+                <small class="text-muted fw-medium">Active Documents</small>
               </div>
             </div>
           </div>
-        </v-card>
+        </div>
       </div>
 
-      <DocumentTable :client-id="selectedClientId"
-        @preview="onPreview" @preview-image="onPreviewImage" @edit-image="onEditImage"
-        @update-count="onUpdateCount" />
+      <div v-if="selectedClientId" class="flex-grow-1">
+        <DocumentTable :client-id="selectedClientId"
+          @preview="onPreview" @preview-image="onPreviewImage" @edit-image="onEditImage"
+          @update-count="onUpdateCount" />
+      </div>
+      <div v-else class="flex-grow-1 d-flex align-items-center justify-content-center">
+        <div class="text-center" style="max-width: 380px;">
+          <div class="d-inline-flex align-items-center justify-content-center mb-3"
+            style="width: 72px; height: 72px; border-radius: 50%; background: rgba(30,58,95,0.06);">
+            <i class="bi bi-file-earmark-plus" style="font-size: 32px; color: #94A3B8;"></i>
+          </div>
+          <h6 class="fw-semibold mb-1" style="color: #1E293B;">No client selected</h6>
+          <p class="small text-muted mb-3">Select a client from the sidebar or create a new one to start uploading documents.</p>
+          <router-link to="/clients/new" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus me-1"></i> Create Client
+          </router-link>
+        </div>
+      </div>
 
       <div class="mt-auto pt-3">
         <AuditTrail :client-id="selectedClientId" />
@@ -241,31 +263,44 @@ function onResizeEnd() {
     <ImageEditor v-if="editingImageFile" :image-src="editingImageFile"
       @close="editingImageFile = null; editingImageDocId = null"
       @save="onImageSave" />
-    <v-progress-circular v-if="editingImageLoading" indeterminate size="24" width="2" color="primary"
-      class="ma-auto" />
 
-    <v-dialog v-model="deleteClientDialog" max-width="400">
-      <v-card>
-        <v-card-text class="pa-6 text-center">
-          <v-avatar color="error" variant="tonal" size="48" class="mb-3">
-            <v-icon color="error" size="28">mdi-alert-circle</v-icon>
-          </v-avatar>
-          <div class="text-body-1 font-weight-medium mb-1">Delete Client</div>
-          <div class="text-body-2 text-grey">
-            Delete <strong>{{ clientInfo?.name }}</strong> and all associated documents permanently? This cannot be undone.
+    <div v-if="editingImageLoading" class="text-center py-3">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+
+    <div class="modal-backdrop fade show" v-if="deleteClientDialog"></div>
+    <div class="modal d-block" tabindex="-1" v-if="deleteClientDialog">
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+        <div class="modal-content border-0 shadow">
+          <div class="modal-body text-center p-4">
+            <div class="d-inline-flex align-items-center justify-content-center mb-3"
+              style="width: 48px; height: 48px; border-radius: 50%; background: rgba(220,38,38,0.1);">
+              <i class="bi bi-exclamation-circle" style="font-size: 24px; color: #DC2626;"></i>
+            </div>
+            <h6 class="fw-semibold mb-1">Delete Client</h6>
+            <p class="small text-muted mb-0">
+              Delete <strong>{{ clientInfo?.name }}</strong> and all associated documents? This can be undone by an admin.
+            </p>
           </div>
-        </v-card-text>
-        <v-card-actions class="pa-4 pt-0 justify-center ga-2">
-          <v-btn color="error" :loading="deleteClientLoading" @click="confirmDeleteClient"
-            prepend-icon="mdi-delete" variant="tonal">Delete</v-btn>
-          <v-btn variant="text" @click="deleteClientDialog = false">Cancel</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+          <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
+            <button class="btn btn-danger" :disabled="deleteClientLoading" @click="confirmDeleteClient">
+              <span v-if="deleteClientLoading" class="spinner-border spinner-border-sm me-1"></span>
+              <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button class="btn btn-outline-secondary" @click="deleteClientDialog = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <v-snackbar v-model="errorSnackbar" color="error" variant="tonal" location="top" :timeout="4000">
-      {{ errorMsg }}
-    </v-snackbar>
+    <div v-if="errorMsg" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1060;">
+      <div class="toast show align-items-center text-bg-danger border-0" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">{{ errorMsg }}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" @click="errorMsg = ''"></button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -277,14 +312,11 @@ function onResizeEnd() {
   padding: 16px;
   background: rgb(241, 245, 249);
 }
-
 .sidebar-card {
   height: 100%;
   overflow: hidden;
-  background: white;
   flex-shrink: 0;
 }
-
 .resize-handle {
   width: 6px;
   cursor: col-resize;
@@ -293,7 +325,6 @@ function onResizeEnd() {
   flex-shrink: 0;
   margin: 0 4px;
 }
-
 .resize-handle::after {
   content: '';
   position: absolute;
@@ -306,26 +337,24 @@ function onResizeEnd() {
   background: rgb(203, 213, 225);
   transition: background 0.15s ease, height 0.15s ease;
 }
-
 .resize-handle:hover::after,
 .resize-handle:active::after {
   background: rgb(100, 116, 139);
   height: 48px;
 }
-
 .content-area {
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   height: 100%;
 }
-
 .avatar-edit-btn {
   position: absolute;
   bottom: -2px;
   right: -2px;
-}
-
-.name-input {
-  min-width: 200px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

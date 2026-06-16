@@ -38,6 +38,15 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function fetchRecoveryStatus() {
+    try {
+      const { data } = await api.get('/auth/recovery-codes/status')
+      return data.hasUnusedCodes
+    } catch {
+      return true
+    }
+  }
+
   async function changePassword(currentPassword: string, newPassword: string) {
     await api.post('/auth/change-password', { currentPassword, newPassword })
     if (user.value) user.value.mustChangePassword = false

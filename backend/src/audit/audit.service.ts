@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import { desc, eq, ilike, and, SQL } from 'drizzle-orm';
+import { desc, eq, and, or, ilike, SQL } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { auditLogs } from '../database/schema/audit-logs';
 import { users } from '../database/schema/users';
@@ -13,6 +13,7 @@ interface AuditEntry {
   action: string;
   entityType: string;
   entityId?: string | null;
+  description?: string | null;
   oldValues?: Record<string, any> | null;
   newValues?: Record<string, any> | null;
   ipAddress?: string | null;
@@ -33,6 +34,7 @@ export class AuditService {
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
+        description: entry.description,
         oldValues: entry.oldValues ? JSON.stringify(entry.oldValues) : null,
         newValues: entry.newValues ? JSON.stringify(entry.newValues) : null,
         ipAddress: entry.ipAddress,
@@ -50,8 +52,9 @@ export class AuditService {
     action?: string;
     userId?: string;
     entityId?: string;
+    search?: string;
   }) {
-    const { page = 1, limit = 50, entityType, action, userId, entityId } = params;
+    const { page = 1, limit = 50, entityType, action, userId, entityId, search } = params;
     const offset = (page - 1) * limit;
 
     const conditions: SQL[] = [];
@@ -59,6 +62,7 @@ export class AuditService {
     if (action) conditions.push(eq(auditLogs.action, action));
     if (userId) conditions.push(eq(auditLogs.userId, userId));
     if (entityId) conditions.push(eq(auditLogs.entityId, entityId));
+    if (search) conditions.push(ilike(auditLogs.description, `%${search}%`));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
@@ -70,6 +74,7 @@ export class AuditService {
           action: auditLogs.action,
           entityType: auditLogs.entityType,
           entityId: auditLogs.entityId,
+          description: auditLogs.description,
           oldValues: auditLogs.oldValues,
           newValues: auditLogs.newValues,
           ipAddress: auditLogs.ipAddress,

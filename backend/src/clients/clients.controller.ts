@@ -2,6 +2,8 @@ import { Controller, Get, Post, Put, Patch, Delete, Body, Param, UseGuards } fro
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuditAction } from '../audit/decorators/audit-action.decorator';
 
@@ -13,6 +15,13 @@ export class ClientsController {
   @Get()
   findAll() {
     return this.clientsService.findAll();
+  }
+
+  @Get('deleted')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  findDeleted() {
+    return this.clientsService.findDeleted();
   }
 
   @Post()
@@ -39,13 +48,21 @@ export class ClientsController {
 
   @Delete(':id')
   @AuditAction({ entityType: 'client', action: 'DELETE' })
-  remove(@Param('id') id: string) {
-    return this.clientsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.clientsService.remove(id, user.id);
+  }
+
+  @Post(':id/restore')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @AuditAction({ entityType: 'client', action: 'UPDATE' })
+  restore(@Param('id') id: string) {
+    return this.clientsService.restore(id);
   }
 
   @Post(':id/merge')
   @AuditAction({ entityType: 'client', action: 'UPDATE' })
-  merge(@Param('id') id: string, @Body('targetClientId') targetClientId: string) {
-    return this.clientsService.merge(id, targetClientId);
+  merge(@Param('id') id: string, @Body('targetClientId') targetClientId: string, @CurrentUser() user: any) {
+    return this.clientsService.merge(id, targetClientId, user.id);
   }
 }

@@ -14,39 +14,70 @@ onMounted(async () => {
   } catch { /* ignore */ }
   loading.value = false
 })
+
+function initials(name: string) {
+  if (!name) return '?'
+  return name.charAt(0).toUpperCase()
+}
 </script>
 
 <template>
-  <div>
-    <div class="d-flex align-center mb-4">
+  <div class="p-4" style="background: #F1F5F9; min-height: calc(100vh - 56px);">
+    <div class="d-flex align-items-center mb-3">
       <div>
-        <div class="text-h5 font-weight-bold">Clients</div>
-        <div class="text-body-2 text-grey">{{ clients.length }} client(s)</div>
+        <h5 class="fw-bold mb-0" style="color: #1E293B;">Clients</h5>
+        <small class="text-muted">{{ clients.length }} client(s)</small>
       </div>
-      <v-spacer />
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="router.push('/clients/new')">
-        New Client
-      </v-btn>
+      <div class="ms-auto">
+        <button class="btn btn-primary" @click="router.push('/clients/new')">
+          <i class="bi bi-plus me-1"></i> New Client
+        </button>
+      </div>
     </div>
 
-    <v-card>
-      <v-data-table :headers="[
-        { title: 'Name', key: 'name', sortable: true },
-        { title: 'Created', key: 'createdAt', sortable: true },
-        { title: 'Actions', key: 'actions', sortable: false, align: 'end' },
-      ]" :items="clients" :loading="loading" class="elevation-0">
-        <template #item.createdAt="{ value }">
-          {{ new Date(value).toLocaleDateString() }}
-        </template>
-        <template #item.actions="{ item }">
-          <v-btn variant="text" color="primary" size="small" @click="router.push(`/clients/${item.id}`)">
-            View
-          </v-btn>
-        </template>
-        <template #no-data>
-          <div class="pa-4 text-grey">No clients yet. Create your first client.</div>
-        </template>
-      </v-data-table>
-    </v-card>
+    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Created</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in clients" :key="c.id">
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="avatar-initials" style="background: rgba(30,58,95,0.08); color: #1E3A5F;">
+                    {{ initials(c.name) }}
+                  </div>
+                  <span class="fw-medium" style="color: #1E293B;">{{ c.name }}</span>
+                </div>
+              </td>
+              <td>
+                <small class="text-muted">{{ new Date(c.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }}</small>
+              </td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-soft-primary" @click="router.push(`/clients/${c.id}`)">
+                  View Details <i class="bi bi-chevron-right ms-1"></i>
+                </button>
+              </td>
+            </tr>
+            <tr v-if="clients.length === 0">
+              <td colspan="3">
+                <div class="empty-state">
+                  <i class="bi bi-people"></i>
+                  <p class="small text-muted mb-2">No clients yet</p>
+                  <button class="btn btn-primary btn-sm" @click="router.push('/clients/new')">
+                    <i class="bi bi-plus me-1"></i> Create your first client
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>

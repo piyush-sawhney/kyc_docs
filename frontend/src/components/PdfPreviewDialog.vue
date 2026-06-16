@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const props = defineProps<{
-  pdfBlob: Blob
-}>()
-
-const emit = defineEmits<{
-  close: []
-}>()
+const props = defineProps<{ pdfBlob: Blob }>()
+const emit = defineEmits<{ close: [] }>()
 
 const pdfUrl = ref('')
 
@@ -28,39 +23,34 @@ function handleDownload() {
 </script>
 
 <template>
-  <v-dialog :model-value="true" fullscreen transition="dialog-bottom-transition">
-    <v-card class="preview-card">
-      <v-toolbar color="transparent" density="compact">
-        <v-btn icon="mdi-close" variant="text" @click="emit('close')" />
-        <v-toolbar-title class="text-body-1 font-weight-medium">PDF Preview</v-toolbar-title>
-        <v-spacer />
-        <v-btn color="primary" variant="tonal" prepend-icon="mdi-download"
-          class="font-weight-medium px-4" @click="handleDownload">
-          Download
-        </v-btn>
-      </v-toolbar>
+  <div class="modal-backdrop fade show"></div>
+  <div class="modal d-block" tabindex="-1" style="overflow: hidden;">
+    <div class="modal-dialog modal-fullscreen p-0 m-0" style="max-width: 100vw;">
+      <div class="modal-content border-0" style="height: 100vh; border-radius: 0; background: rgb(248, 250, 252);">
+        <div class="d-flex align-items-center px-3 border-bottom bg-white" style="flex-shrink: 0; min-height: 48px;">
+          <button class="btn btn-sm btn-link text-decoration-none text-dark me-2" @click="emit('close')">
+            <i class="bi bi-x" style="font-size: 20px;"></i>
+          </button>
+          <small class="fw-medium flex-grow-1">PDF Preview</small>
+          <button class="btn btn-sm btn-primary" @click="handleDownload">
+            <i class="bi bi-download me-1"></i> Download
+          </button>
+        </div>
 
-      <div v-if="pdfUrl" class="preview-body">
-        <iframe :src="pdfUrl" class="preview-iframe" title="PDF Preview" />
+        <div v-if="pdfUrl" class="preview-body">
+          <iframe :src="pdfUrl" class="preview-iframe" title="PDF Preview" />
+        </div>
       </div>
-    </v-card>
-  </v-dialog>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.preview-card {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: rgb(248, 250, 252);
-}
-
 .preview-body {
   flex: 1;
   min-height: 0;
   display: flex;
 }
-
 .preview-iframe {
   width: 100%;
   height: 100%;

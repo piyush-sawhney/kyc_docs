@@ -16,10 +16,16 @@ export class AuditController {
     @Query('action') action?: string,
     @Query('userId') userId?: string,
     @Query('entityId') entityId?: string,
+    @Query('search') search?: string,
     @CurrentUser() user?: any,
   ) {
-    if (user?.role !== 'admin' && !entityId) {
-      throw new BadRequestException('entityId is required for non-admin users');
+    if (user?.role !== 'admin') {
+      if (!entityId && !userId) {
+        userId = user?.id;
+      }
+      if (entityId && !userId) {
+        userId = user?.id;
+      }
     }
     return this.auditService.findAll({
       page: page ? parseInt(page, 10) : 1,
@@ -28,6 +34,7 @@ export class AuditController {
       action,
       userId,
       entityId,
+      search,
     });
   }
 }

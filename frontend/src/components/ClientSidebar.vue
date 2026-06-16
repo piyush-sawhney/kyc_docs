@@ -11,7 +11,9 @@ const loading = ref(false)
 const matchingDocClientIds = ref<Set<string>>(new Set())
 
 const sortedClients = computed(() =>
-  [...clients.value].sort((a, b) => a.name.localeCompare(b.name))
+  [...clients.value]
+    .filter((c) => !c.isDeleted)
+    .sort((a, b) => a.name.localeCompare(b.name))
 )
 
 const filteredClients = computed(() => {
@@ -92,7 +94,7 @@ async function confirmAdd() {
   try {
     const { data } = await api.post('/clients', { name })
     addingClient.value = false
-    load()
+    await load()
     emit('select', data.id)
     emit('refresh')
   } catch { /* ignore */ }
@@ -102,59 +104,55 @@ async function confirmAdd() {
 
 <template>
   <div class="d-flex flex-column" style="height: 100%;">
-    <div class="pa-3 pb-0">
-      <div class="d-flex align-center ga-2 mb-2">
-        <v-icon color="primary" size="small">mdi-account-group-outline</v-icon>
-        <span class="text-subtitle-2 font-weight-semibold text-grey-darken-1">Clients</span>
-        <v-spacer />
-        <span class="text-caption text-grey font-weight-medium">{{ filteredClients.length }}</span>
+    <div class="p-3 pb-0">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-people" style="color: #1E3A5F; font-size: 14px;"></i>
+        <small class="fw-semibold" style="color: #1E293B;">Clients</small>
+        <span class="ms-auto"><small class="text-muted fw-medium">{{ filteredClients.length }}</small></span>
       </div>
 
-      <!-- New client input at top -->
       <div v-if="addingClient" class="mb-2">
-        <v-text-field ref="newInputRef" v-model="newClientName"
-          placeholder="Enter client name..." variant="outlined" density="compact"
-          hide-details autofocus :loading="newClientLoading"
-          @keyup.enter="confirmAdd" @blur="confirmAdd"
-          @keyup.escape="addingClient = false"
-          prepend-inner-icon="mdi-plus" />
+        <div class="input-group input-group-sm">
+          <input ref="newInputRef" type="text" class="form-control" v-model="newClientName"
+            placeholder="Enter client name..." :disabled="newClientLoading"
+            @keyup.enter="confirmAdd" @blur="confirmAdd" @keyup.escape="addingClient = false" />
+          <span v-if="newClientLoading" class="input-group-text"><span class="spinner-border spinner-border-sm"></span></span>
+        </div>
       </div>
 
-      <div class="d-flex align-center ga-2">
-        <v-text-field v-model="search" prepend-inner-icon="mdi-magnify"
-          placeholder="Search clients or docs..." density="compact" variant="solo-filled"
-          hide-details flat class="flex-grow-1" clearable />
-        <v-btn size="small" color="primary" variant="tonal"
-          icon="mdi-plus" @click="startAdd"
-          class="flex-shrink-0" title="New client" />
+      <div class="d-flex gap-1">
+        <div class="input-group input-group-sm flex-grow-1">
+          <span class="input-group-text"><i class="bi bi-search" style="font-size: 12px;"></i></span>
+          <input type="text" class="form-control" v-model="search" placeholder="Search clients or docs..." />
+          <button v-if="search" class="btn btn-outline-secondary" @click="search = ''"><i class="bi bi-x"></i></button>
+        </div>
+        <button class="btn btn-sm btn-primary flex-shrink-0" @click="startAdd" title="New client">
+          <i class="bi bi-plus"></i>
+        </button>
       </div>
     </div>
 
-    <v-list density="compact" nav class="flex-grow-1 overflow-y-auto pa-1 mt-1">
-      <v-list-item v-for="c in filteredClients" :key="c.id"
-        :title="c.name" :active="c.id === selectedClientId"
-        @click="emit('select', c.id)" class="client-item rounded-lg mb-0">
-        <template #prepend>
-          <v-avatar :color="c.id === selectedClientId ? 'primary' : 'grey-lighten-3'"
-            size="32" variant="tonal" class="mr-1">
-            <span class="font-weight-medium text-body-2"
-              :class="c.id === selectedClientId ? 'text-primary' : 'text-grey'">
-              {{ c.name.charAt(0).toUpperCase() }}
-            </span>
-          </v-avatar>
-        </template>
-        <template #title>
-          <span class="text-body-1 font-weight-medium" :class="c.id === selectedClientId ? 'text-primary' : 'text-grey-darken-1'">
-            {{ c.name }}
-          </span>
-        </template>
-      </v-list-item>
-
-      <div v-if="!filteredClients.length && !addingClient" class="pa-6 text-center">
-        <v-icon size="32" class="mb-2 text-grey-lighten-1">mdi-account-off-outline</v-icon>
-        <div class="text-caption text-grey">No clients found</div>
+    <div class="flex-grow-1 overflow-y-auto p-1 mt-1">
+      <div v-for="c in filteredClients" :key="c.id"
+        class="d-flex align-items-center gap-2 px-2 py-2 rounded-3 client-item mb-0 cursor-pointer"
+        :class="{ 'bg-soft-primary': c.id === selectedClientId }"
+        @click="emit('select', c.id)">
+        <div class="avatar-initials"
+          :style="c.id === selectedClientId ? 'background: rgba(30,58,95,0.12); color: #1E3A5F;' : 'background: #F1F5F9; color: #64748B;'"
+          style="width: 32px; height: 32px; font-size: 13px;">
+          {{ c.name.charAt(0).toUpperCase() }}
+        </div>
+        <span class="small fw-medium flex-grow-1 text-truncate"
+          :style="c.id === selectedClientId ? 'color: #1E3A5F;' : 'color: #1E293B;'">
+          {{ c.name }}
+        </span>
       </div>
-    </v-list>
+
+      <div v-if="!filteredClients.length && !addingClient" class="text-center py-5">
+        <i class="bi bi-person-x" style="font-size: 28px; color: #CBD5E1;"></i>
+        <div><small class="text-muted">No clients found</small></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -163,12 +161,7 @@ async function confirmAdd() {
   transition: all 0.12s ease;
   margin-bottom: 1px;
 }
-
 .client-item:hover {
   background: rgba(30, 58, 95, 0.04);
-}
-
-.client-item.v-list-item--active {
-  background: rgba(30, 58, 95, 0.06);
 }
 </style>

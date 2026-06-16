@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import PasswordField from '../components/PasswordField.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -32,26 +33,36 @@ async function handleChange() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center">
-    <v-card width="480">
-      <v-card-title class="pa-4">
-        <div class="text-h5 font-weight-bold">Change Password</div>
-      </v-card-title>
+  <div class="d-flex justify-content-center p-4" style="background: #F1F5F9; min-height: calc(100vh - 56px);">
+    <div class="card border-0 shadow-sm" style="max-width: 480px; width: 100%; border-radius: 12px; height: fit-content; margin-top: 2rem;">
+      <div class="card-body p-4">
+        <h5 class="fw-bold mb-1" style="color: #1E293B;">Change Password</h5>
+        <p class="text-muted small mb-3">Your password must be at least 8 characters with uppercase, lowercase, number and special character.</p>
 
-      <v-card-text>
-        <v-alert v-if="auth.user?.mustChangePassword" type="warning" variant="tonal" density="compact" class="mb-4" icon="mdi-alert">
-          You must change your password before continuing.
-        </v-alert>
-        <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" closable>{{ error }}</v-alert>
-        <v-alert v-if="success" type="success" variant="tonal" density="compact" class="mb-4">Password changed! Redirecting...</v-alert>
+        <div v-if="auth.user?.mustChangePassword" class="alert alert-warning d-flex align-items-center py-2 px-3 small" role="alert">
+          <i class="bi bi-exclamation-triangle me-2"></i> You must change your password before continuing.
+        </div>
+        <div v-if="error" class="alert alert-danger py-2 px-3 small">{{ error }}</div>
+        <div v-if="success" class="alert alert-success py-2 px-3 small">
+          <i class="bi bi-check-circle me-1"></i> Password changed! Redirecting...
+        </div>
 
-        <v-form @submit.prevent="handleChange">
-          <v-text-field v-model="currentPassword" label="Current Password" type="password" :disabled="loading" class="mb-3" />
-          <v-text-field v-model="newPassword" label="New Password" type="password" :disabled="loading" class="mb-3" />
-          <v-text-field v-model="confirmPassword" label="Confirm New Password" type="password" :disabled="loading" class="mb-4" />
-          <v-btn type="submit" color="primary" :loading="loading" block>Change Password</v-btn>
-        </v-form>
-      </v-card-text>
-    </v-card>
-  </v-container>
+        <form @submit.prevent="handleChange">
+          <div class="mb-3">
+            <PasswordField v-model="currentPassword" label="Current Password" :disabled="loading" />
+          </div>
+          <div class="mb-3">
+            <PasswordField v-model="newPassword" label="New Password" :disabled="loading" show-strength />
+          </div>
+          <div class="mb-4">
+            <PasswordField v-model="confirmPassword" label="Confirm New Password" :disabled="loading" />
+          </div>
+          <button type="submit" class="btn btn-primary w-100 btn-lg" :disabled="loading">
+            <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+            Change Password
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 </template>

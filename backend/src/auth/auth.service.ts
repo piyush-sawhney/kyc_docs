@@ -8,6 +8,7 @@ import * as schema from '../database/schema';
 import { users } from '../database/schema/users';
 import { recoveryCodes } from '../database/schema/recovery-codes';
 import { DRIZZLE } from '../database/drizzle.provider';
+import { AuditService } from '../audit/audit.service';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -16,6 +17,7 @@ export class AuthService {
   constructor(
     @Inject(DRIZZLE) private db: Database,
     private jwtService: JwtService,
+    private auditService: AuditService,
   ) {}
 
   private async validateUser(email: string, password: string) {
@@ -27,6 +29,7 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
+    if (user.isDeleted) throw new UnauthorizedException('Account has been removed');
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
@@ -47,9 +50,21 @@ export class AuthService {
 
     const token = this.generateToken(user);
 
+    this.auditService.log({
+      userId: user.id,
+      action: 'LOGIN',
+      entityType: 'auth',
+      entityId: user.id,
+      description: `${user.fullName} logged in`,
+      newValues: { email: user.email },
+      ipAddress: null,
+      userAgent: null,
+    }).catch(() => {});
+
     return {
       token,
       mustChangePassword: user.mustChangePassword,
+      recoveryCodesMissing: user.role === 'admin' ? !(await this.checkRecoveryCodesStatus(user.id)) : false,
       user: {
         id: user.id,
         email: user.email,
@@ -77,6 +92,17 @@ export class AuthService {
       .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
       .where(eq(users.id, userId));
 
+    this.auditService.log({
+      userId,
+      action: 'PASSWORD_CHANGE',
+      entityType: 'auth',
+      entityId: userId,
+      description: `${user.fullName} changed their password`,
+      newValues: { userId },
+      ipAddress: null,
+      userAgent: null,
+    }).catch(() => {});
+
     return { message: 'Password changed' };
   }
 
@@ -89,6 +115,7 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
+    if (user.isDeleted) throw new UnauthorizedException('Account has been removed');
 
     const allCodes = await this.db
       .select()
@@ -107,6 +134,7 @@ export class AuthService {
         return {
           token,
           mustChangePassword: user.mustChangePassword,
+          recoveryCodesMissing: user.role === 'admin' ? !(await this.checkRecoveryCodesStatus(user.id)) : false,
           user: { id: user.id, email: user.email, fullName: user.fullName, role: user.role },
         };
       }
@@ -138,7 +166,37 @@ export class AuthService {
     }
 
     await this.db.insert(recoveryCodes).values(inserts);
+
+    this.auditService.log({
+      userId,
+      action: 'RECOVERY_CODES',
+      entityType: 'auth',
+      entityId: userId,
+      description: `${(await this.getProfile(userId))?.fullName || 'User'} generated new recovery codes`,
+      newValues: { userId },
+      ipAddress: null,
+      userAgent: null,
+    }).catch(() => {});
+
     return { recoveryCodes: newCodes };
+  }
+
+  async checkRecoveryCodesStatus(userId: string): Promise<boolean> {
+    const [user] = await this.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user || user.role !== 'admin') return true;
+
+    const unused = await this.db
+      .select({ id: recoveryCodes.id })
+      .from(recoveryCodes)
+      .where(and(eq(recoveryCodes.userId, userId), eq(recoveryCodes.isUsed, false)))
+      .limit(1);
+
+    return unused.length > 0;
   }
 
   async getProfile(userId: string) {
