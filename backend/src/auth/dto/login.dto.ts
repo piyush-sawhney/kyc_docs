@@ -1,21 +1,24 @@
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
-import { IsStrongPassword } from '../../common/decorators/password.decorator';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 
-export class LoginDto {
+export class LoginInitDto {
+  @IsEmail()
+  email: string;
+}
+
+export class TotpLoginDto {
   @IsEmail()
   email: string;
 
   @IsString()
-  password: string;
+  totpCode: string;
 }
 
-export class ChangePasswordDto {
+export class TotpEnrollDto {
   @IsString()
-  currentPassword: string;
+  enrollToken: string;
 
   @IsString()
-  @IsStrongPassword()
-  newPassword: string;
+  totpCode: string;
 }
 
 export class RecoveryLoginDto {
@@ -23,19 +26,5 @@ export class RecoveryLoginDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
   code: string;
-}
-
-export class RecoveryResetPasswordDto {
-  @IsEmail()
-  email: string;
-
-  @IsString()
-  @MinLength(6)
-  recoveryCode: string;
-
-  @IsString()
-  @IsStrongPassword()
-  newPassword: string;
 }

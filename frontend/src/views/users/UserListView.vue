@@ -25,11 +25,6 @@ const filteredUsers = computed(() => {
 
 const activeCount = computed(() => users.value.filter(u => u.isActive).length)
 
-const resetPasswordDialog = ref(false)
-const tempPassword = ref('')
-const resetPasswordUser = ref<any>(null)
-const resetPasswordLoading = ref(false)
-const resetPasswordError = ref('')
 const toggleError = ref('')
 
 onMounted(async () => {
@@ -55,27 +50,6 @@ async function toggleActive(user: any) {
     user.isActive = !user.isActive
   } catch (err: any) {
     toggleError.value = err?.response?.data?.message || 'Failed to toggle user status'
-  }
-}
-
-function openResetPassword(user: any) {
-  resetPasswordUser.value = user
-  tempPassword.value = ''
-  resetPasswordError.value = ''
-  resetPasswordDialog.value = true
-}
-
-async function executeResetPassword() {
-  if (!resetPasswordUser.value) return
-  resetPasswordLoading.value = true
-  resetPasswordError.value = ''
-  try {
-    const { data } = await api.post(`/users/${resetPasswordUser.value.id}/reset-password`)
-    tempPassword.value = data.tempPassword
-  } catch (err: any) {
-    resetPasswordError.value = err?.response?.data?.message || 'Failed to reset password'
-  } finally {
-    resetPasswordLoading.value = false
   }
 }
 
@@ -200,11 +174,7 @@ function initials(name: string) {
                     @click="router.push(`/users/${u.id}`)">
                     <i class="bi bi-shield-account me-1"></i> Permissions
                   </button>
-                  <button class="btn btn-sm btn-soft-warning" title="Reset password"
-                    @click="openResetPassword(u)">
-                    <i class="bi bi-key"></i>
-                  </button>
-                  <button class="btn btn-sm" :class="u.isActive ? 'btn-soft-danger' : 'btn-soft-success'"
+                  <button v-if="u.role !== 'admin'" class="btn btn-sm" :class="u.isActive ? 'btn-soft-danger' : 'btn-soft-success'"
                     :title="u.isActive ? 'Deactivate' : 'Reactivate'"
                     @click="toggleActive(u)">
                     <i :class="u.isActive ? 'bi bi-person-x' : 'bi bi-person-check'"></i>
@@ -303,51 +273,6 @@ function initials(name: string) {
       </div>
     </div>
 
-    <!-- Reset Password Modal -->
-    <div class="modal-backdrop fade show" v-if="resetPasswordDialog"></div>
-    <div class="modal d-block" tabindex="-1" v-if="resetPasswordDialog">
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-body text-center p-4">
-            <div class="d-inline-flex align-items-center justify-content-center mb-3"
-              style="width: 48px; height: 48px; border-radius: 50%; background: rgba(245,158,11,0.1);">
-              <i class="bi bi-key" style="font-size: 24px; color: #F59E0B;"></i>
-            </div>
-
-            <div v-if="!tempPassword">
-              <h6 class="fw-semibold mb-1">Reset Password</h6>
-              <p class="small text-muted mb-0">
-                Reset password for <strong>{{ resetPasswordUser?.fullName }}</strong>?
-                <br>They will need to set a new one on next login.
-              </p>
-              <div v-if="resetPasswordError" class="alert alert-danger py-2 px-3 small mt-3 mb-0">{{ resetPasswordError }}</div>
-            </div>
-
-            <div v-else>
-              <h6 class="fw-semibold mb-1">Password Reset Successfully</h6>
-              <p class="small text-muted mb-2">Temporary password for <strong>{{ resetPasswordUser?.fullName }}</strong>:</p>
-              <div class="d-inline-block border rounded px-3 py-2 bg-light mb-2">
-                <code style="font-size: 18px; letter-spacing: 2px; color: #1E3A5F;">{{ tempPassword }}</code>
-              </div>
-              <p class="small text-muted mb-0">
-                <i class="bi bi-info-circle me-1"></i>Please share this with the user. They will be prompted to change it on next login.
-              </p>
-            </div>
-          </div>
-          <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
-            <button v-if="!tempPassword" class="btn btn-primary" :disabled="resetPasswordLoading" @click="executeResetPassword">
-              <span v-if="resetPasswordLoading" class="spinner-border spinner-border-sm me-1"></span>
-              <i class="bi bi-check me-1"></i> Reset Password
-            </button>
-            <button v-else class="btn btn-primary" @click="resetPasswordDialog = false; resetPasswordUser = null">
-              <i class="bi bi-check me-1"></i> Done
-            </button>
-            <button v-if="!tempPassword" class="btn btn-outline-secondary" @click="resetPasswordDialog = false; resetPasswordUser = null">
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    
   </div>
 </template>

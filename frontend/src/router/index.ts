@@ -7,6 +7,7 @@ const router = createRouter({
   routes: [
     { path: '/login', component: () => import('../views/LoginView.vue'), meta: { guest: true } },
     { path: '/setup', component: () => import('../views/SetupView.vue'), meta: { setup: true } },
+    { path: '/totp-enroll', component: () => import('../views/TotpEnrollView.vue'), meta: { guest: true } },
     { path: '/', component: () => import('../views/DashboardView.vue'), meta: { auth: true } },
     { path: '/clients', component: () => import('../views/clients/ClientListView.vue'), meta: { auth: true, permission: 'client:read' } },
     { path: '/clients/new', component: () => import('../views/clients/ClientCreateView.vue'), meta: { auth: true, permission: 'client:create' } },
@@ -16,7 +17,7 @@ const router = createRouter({
     { path: '/users/:id', component: () => import('../views/users/UserEditView.vue'), meta: { auth: true, admin: true, permission: 'user:manage' } },
 
     { path: '/audit-logs', component: () => import('../views/audit/AuditLogView.vue'), meta: { auth: true, admin: true, permission: 'audit:view' } },
-    { path: '/change-password', component: () => import('../views/ChangePasswordView.vue'), meta: { auth: true } },
+    { path: '/re-enroll', component: () => import('../views/ReEnrollView.vue'), meta: { auth: true } },
     { path: '/recovery-codes', component: () => import('../views/RecoveryCodesView.vue'), meta: { auth: true, admin: true } },
   ],
 })

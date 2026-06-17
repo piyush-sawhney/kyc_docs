@@ -42,12 +42,14 @@ export class UsersController {
   }
 
   @Post(':id/deactivate')
+  @Roles('admin')
   @RequirePermissions('user:manage')
   deactivate(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.deactivate(id, user?.id);
   }
 
   @Post(':id/reactivate')
+  @Roles('admin')
   @RequirePermissions('user:manage')
   reactivate(@Param('id') id: string, @CurrentUser() user: any) {
     return this.usersService.reactivate(id, user?.id);
@@ -71,10 +73,10 @@ export class UsersController {
     return this.usersService.updateRole(id, role, user?.id);
   }
 
-  @Post(':id/reset-password')
-  @RequirePermissions('user:reset_password')
-  resetPassword(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.usersService.resetPassword(id, user?.id);
+  @Post(':id/re-enroll')
+  @Roles('admin')
+  reEnroll(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.authService.adminReEnroll(id, user?.id);
   }
 
   @Post(':id/recovery-codes')

@@ -2,7 +2,10 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
+import * as OTPLib from 'otplib';
+import * as QRCode from 'qrcode';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { Logger } from '@nestjs/common';
 import * as schema from './database/schema';
 import 'dotenv/config'
@@ -20,7 +23,6 @@ async function seed() {
   const db = drizzle({ client: queryClient, schema });
 
   const adminEmail = 'admin@kyc.com';
-  const adminPassword = 'admin123';
 
   const [existing] = await db
     .select()
@@ -34,17 +36,34 @@ async function seed() {
     return;
   }
 
-  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const secret = OTPLib.generateSecret();
 
-  await db
+  const [admin] = await db
     .insert(schema.users)
     .values({
       email: adminEmail,
-      passwordHash,
+      totpSecret: secret,
+      totpVerified: true,
       fullName: 'System Admin',
       role: 'admin',
     })
     .returning();
+
+  const qrDataUrl = await QRCode.toDataURL(OTPLib.generateURI({ issuer: 'KNAPS Docs', label: adminEmail, secret }));
+
+  const codes: string[] = [];
+  const codeInserts: { userId: string; codeHash: string }[] = [];
+
+  for (let i = 0; i < 5; i++) {
+    const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+    codes.push(code);
+    codeInserts.push({
+      userId: admin.id,
+      codeHash: await bcrypt.hash(code, 10),
+    });
+  }
+
+  await db.insert(schema.recoveryCodes).values(codeInserts);
 
   logger.log('Admin user created: ' + adminEmail);
 
@@ -58,7 +77,9 @@ async function seed() {
   }
 
   logger.log('Seed complete!');
-  logger.log('Admin login: admin@kyc.com / admin123');
+  logger.log('Admin login: admin@kyc.com');
+  logger.log('Scan this QR code with Google Authenticator:');
+  logger.log(qrDataUrl);
 
   await queryClient.end();
 }

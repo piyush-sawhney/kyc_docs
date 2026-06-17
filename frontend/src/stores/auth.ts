@@ -7,8 +7,6 @@ interface User {
   email: string
   fullName: string
   role: string
-  isActive?: boolean
-  mustChangePassword?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -26,8 +24,19 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function login(email: string, password: string) {
-    const { data } = await api.post('/auth/login', { email, password })
+  async function loginInit(email: string) {
+    const { data } = await api.post('/auth/login-init', { email })
+    return data
+  }
+
+  async function verifyTotp(email: string, totpCode: string) {
+    const { data } = await api.post('/auth/login', { email, totpCode })
+    user.value = data.user
+    return data
+  }
+
+  async function totpEnroll(enrollToken: string, totpCode: string) {
+    const { data } = await api.post('/auth/totp/enroll', { enrollToken, totpCode })
     user.value = data.user
     return data
   }
@@ -47,9 +56,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function changePassword(currentPassword: string, newPassword: string) {
-    await api.post('/auth/change-password', { currentPassword, newPassword })
-    if (user.value) user.value.mustChangePassword = false
+  async function reEnroll() {
+    const { data } = await api.post('/auth/totp/re-enroll')
+    return data
+  }
+
+  async function reEnrollVerify(totpCode: string) {
+    const { data } = await api.post('/auth/totp/re-enroll/verify', { totpCode })
+    return data
   }
 
   async function logout() {
@@ -57,5 +71,5 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  return { user, initialized, fetchUser, login, recoveryLogin, changePassword, logout }
+  return { user, initialized, fetchUser, loginInit, verifyTotp, totpEnroll, recoveryLogin, fetchRecoveryStatus, reEnroll, reEnrollVerify, logout }
 })

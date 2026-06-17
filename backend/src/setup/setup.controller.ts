@@ -1,18 +1,23 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
+import { IsEmail, IsString } from 'class-validator';
 import { Public } from '../auth/decorators/public.decorator';
 import { SetupService } from './setup.service';
 
-class SetupDto {
+class SetupInitDto {
   @IsEmail()
   email: string;
 
   @IsString()
-  @MinLength(6)
-  password: string;
+  fullName: string;
+}
+
+class SetupVerifyDto {
+  @IsString()
+  setupToken: string;
 
   @IsString()
-  fullName: string;
+  totpCode: string;
 }
 
 @Controller('api/setup')
@@ -27,8 +32,22 @@ export class SetupController {
   }
 
   @Public()
-  @Post()
-  async setup(@Body() dto: SetupDto) {
-    return this.setupService.setup(dto);
+  @Post('init')
+  async init(@Body() dto: SetupInitDto) {
+    return this.setupService.init(dto);
+  }
+
+  @Public()
+  @Post('verify')
+  async verify(@Body() dto: SetupVerifyDto, @Res({ passthrough: true }) reply: FastifyReply) {
+    const result = await this.setupService.verify(dto.setupToken, dto.totpCode);
+    reply.setCookie('token', result.token, {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 86400,
+    });
+    return { user: result.user, recoveryCodes: result.recoveryCodes };
   }
 }

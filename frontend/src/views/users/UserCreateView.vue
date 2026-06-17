@@ -2,11 +2,9 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api/client'
-import PasswordField from '../../components/PasswordField.vue'
 
 const router = useRouter()
 const email = ref('')
-const password = ref('')
 const fullName = ref('')
 const role = ref('user')
 const loading = ref(false)
@@ -16,7 +14,7 @@ async function handleSubmit() {
   loading.value = true
   error.value = ''
   try {
-    await api.post('/users', { email: email.value, password: password.value, fullName: fullName.value, role: role.value })
+    await api.post('/users', { email: email.value, fullName: fullName.value, role: role.value })
     router.push('/users')
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to create user'
@@ -30,7 +28,7 @@ async function handleSubmit() {
   <div class="d-flex justify-content-center p-4" style="background: #F1F5F9; min-height: calc(100vh - 56px);">
     <div style="max-width: 520px; width: 100%;">
       <h5 class="fw-bold mb-1" style="color: #1E293B;">Create User</h5>
-      <p class="text-muted small mb-3">Add a new user to the system</p>
+      <p class="text-muted small mb-3">Add a new user to the system. They will set up Google Authenticator on first login.</p>
 
       <div v-if="error" class="alert alert-danger py-2 px-3 small mb-3">{{ error }}</div>
 
@@ -44,9 +42,6 @@ async function handleSubmit() {
             <div class="mb-3">
               <label class="form-label">Email</label>
               <input type="email" class="form-control" v-model="email" :disabled="loading" />
-            </div>
-            <div class="mb-3">
-              <PasswordField v-model="password" label="Password" :disabled="loading" show-strength />
             </div>
             <div class="mb-4">
               <label class="form-label">Role</label>

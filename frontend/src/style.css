@@ -529,6 +529,14 @@ h1, h2, h3, h4, h5, h6,
   height: 48px;
 }
 
+/* ---- Placeholder Watermark ---- */
+input[inputmode="numeric"][maxlength="6"]::placeholder,
+input[placeholder="Enter recovery code"]::placeholder {
+  color: #D1D5DB;
+  opacity: 1;
+  font-weight: 300;
+}
+
 /* ---- Password Strength ---- */
 .password-strength {
   height: 3px;

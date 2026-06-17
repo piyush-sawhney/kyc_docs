@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useSetupStore } from './stores/setup'
+import KnapsLogo from './components/KnapsLogo.vue'
 
 const auth = useAuthStore()
 const setup = useSetupStore()
@@ -62,11 +63,8 @@ function closeMenu() {
     <template v-if="auth.user && !setup.needsSetup">
       <nav class="navbar navbar-expand navbar-light bg-white border-bottom fixed-top" style="height: 56px; padding: 0 16px;">
         <div class="d-flex align-items-center w-100">
-          <div class="d-flex align-items-center gap-1">
-            <div class="avatar-initials me-2" style="background: rgba(30,58,95,0.08); color: #1E3A5F; width: 32px; height: 32px; font-size: 14px;">
-              <i class="bi bi-file-earmark-check" style="font-size: 16px;"></i>
-            </div>
-            <span class="fw-semibold" style="color: #1E3A5F; font-size: 15px;">KYC Docs</span>
+          <div class="d-flex align-items-center gap-2">
+            <KnapsLogo size="sm" />
           </div>
 
           <div class="d-flex align-items-center gap-1 ms-3">
@@ -79,11 +77,6 @@ function closeMenu() {
           </div>
 
           <div class="ms-auto d-flex align-items-center gap-2">
-            <button v-if="auth.user?.mustChangePassword" class="btn btn-warning btn-sm"
-              @click="router.push('/change-password')">
-              <i class="bi bi-key me-1"></i> Change Password
-            </button>
-
             <div class="dropdown">
               <button class="btn btn-link text-decoration-none text-dark px-2 dropdown-toggle d-flex align-items-center gap-1"
                 @click="userMenuOpen = !userMenuOpen" data-bs-toggle="dropdown" aria-expanded="false">
@@ -94,17 +87,6 @@ function closeMenu() {
               </button>
               <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 py-1" style="min-width: 200px;"
                 :class="{ show: userMenuOpen }">
-                <li v-if="auth.user?.role === 'admin'">
-                  <a class="dropdown-item small py-2" href="#" @click.prevent="router.push('/recovery-codes'); closeMenu()">
-                    <i class="bi bi-shield-key me-2"></i> Recovery Codes
-                  </a>
-                </li>
-                <li><hr class="dropdown-divider my-1"></li>
-                <li>
-                  <a class="dropdown-item small py-2" href="#" @click.prevent="router.push('/change-password'); closeMenu()">
-                    <i class="bi bi-key me-2"></i> Change Password
-                  </a>
-                </li>
                 <li><hr class="dropdown-divider my-1"></li>
                 <li>
                   <a class="dropdown-item small py-2 text-danger" href="#" @click.prevent="handleLogout(); closeMenu()">

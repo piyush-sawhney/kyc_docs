@@ -1,7 +1,6 @@
 import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
-import * as bcrypt from 'bcrypt';
 import * as schema from '../database/schema';
 import { users } from '../database/schema/users';
 import { DRIZZLE } from '../database/drizzle.provider';
@@ -30,16 +29,13 @@ export class UsersService {
       throw new ConflictException('Email already in use');
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 12);
-
     const [user] = await this.db
       .insert(users)
       .values({
         email: dto.email,
-        passwordHash,
         fullName: dto.fullName,
         role: dto.role || 'user',
-        mustChangePassword: true,
+        isActive: true,
       })
       .returning({
         id: users.id,
@@ -48,7 +44,6 @@ export class UsersService {
         role: users.role,
         isActive: users.isActive,
         isDeleted: users.isDeleted,
-        mustChangePassword: users.mustChangePassword,
         createdAt: users.createdAt,
       });
 
@@ -75,7 +70,6 @@ export class UsersService {
         role: users.role,
         isActive: users.isActive,
         isDeleted: users.isDeleted,
-        mustChangePassword: users.mustChangePassword,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -92,7 +86,6 @@ export class UsersService {
         role: users.role,
         isActive: users.isActive,
         isDeleted: users.isDeleted,
-        mustChangePassword: users.mustChangePassword,
         createdAt: users.createdAt,
         deletedAt: users.deletedAt,
       })
@@ -110,7 +103,6 @@ export class UsersService {
         role: users.role,
         isActive: users.isActive,
         isDeleted: users.isDeleted,
-        mustChangePassword: users.mustChangePassword,
         createdAt: users.createdAt,
       })
       .from(users)
@@ -125,31 +117,26 @@ export class UsersService {
 
   async deactivate(id: string, currentUserId?: string) {
     const [target] = await this.db
-      .select({ id: users.id, role: users.role })
+      .select({ id: users.id, role: users.role, fullName: users.fullName })
       .from(users)
       .where(and(eq(users.id, id), eq(users.isDeleted, false)))
       .limit(1);
 
     if (!target) throw new NotFoundException('User not found');
 
-    const activeUsers = await this.db
+    const activeAdmins = await this.db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.isDeleted, false), eq(users.isActive, true)));
+      .where(and(eq(users.isDeleted, false), eq(users.isActive, true), eq(users.role, 'admin')));
 
-    if (activeUsers.length <= 1) {
-      throw new ForbiddenException('Cannot deactivate the only active user. At least 2 active users are required in the system.');
+    if (target.role === 'admin' && activeAdmins.length < 3) {
+      throw new ForbiddenException(
+        'Cannot deactivate admin. At least 3 active admins are required to deactivate one. Promote another user to admin first.',
+      );
     }
 
-    if (target.role === 'admin') {
-      const activeAdmins = await this.db
-        .select({ id: users.id })
-        .from(users)
-        .where(and(eq(users.isDeleted, false), eq(users.isActive, true), eq(users.role, 'admin')));
-
-      if (activeAdmins.length <= 1) {
-        throw new ForbiddenException('Cannot deactivate the last active admin. At least 1 admin must remain active.');
-      }
+    if (activeAdmins.length <= 1) {
+      throw new ForbiddenException('At least 1 admin must remain active.');
     }
 
     const [user] = await this.db
@@ -331,36 +318,5 @@ export class UsersService {
     }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return updated;
-  }
-
-  async resetPassword(id: string, currentUserId?: string) {
-    const [user] = await this.db
-      .select()
-      .from(users)
-      .where(and(eq(users.id, id), eq(users.isDeleted, false)))
-      .limit(1);
-
-    if (!user) throw new NotFoundException('User not found');
-
-    const tempPassword = 'Temp@' + Math.random().toString(36).slice(-6);
-    const passwordHash = await bcrypt.hash(tempPassword, 12);
-
-    await this.db
-      .update(users)
-      .set({ passwordHash, mustChangePassword: true, updatedAt: new Date() })
-      .where(eq(users.id, id));
-
-    this.auditService.log({
-      userId: currentUserId || null,
-      action: 'RESET_PASSWORD',
-      entityType: 'user',
-      entityId: id,
-      description: `Reset password for user '${user.fullName}' (${user.email})`,
-      newValues: { id, email: user.email, fullName: user.fullName },
-      ipAddress: null,
-      userAgent: null,
-    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
-
-    return { tempPassword };
   }
 }
