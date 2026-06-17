@@ -1,0 +1,11 @@
+package com.kycdocs.api.common.annotation;
+
+import java.lang.annotation.*;
+
+@Target({ElementType.METHOD, ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface AuditAction {
+    String entityType();
+    String action();
+}
