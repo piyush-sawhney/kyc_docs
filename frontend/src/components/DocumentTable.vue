@@ -71,7 +71,10 @@ const activeDocCount = computed(() => {
   return count
 })
 
-onMounted(() => loadDocTypes())
+onMounted(() => {
+  loadDocTypes()
+  load()
+})
 
 watch(() => props.clientId, () => {
   selected.value = {}
@@ -437,7 +440,7 @@ function hideNumber(groupId: string) {
   <div>
     <div class="card border-0 shadow-sm" style="border-radius: 12px;">
       <div class="d-flex align-items-center px-3 py-1 border-bottom">
-        <div class="ms-auto">
+        <div class="ms-auto" style="min-height: 20px;">
           <span v-if="selectedCount" class="badge bg-soft-primary me-2">{{ selectedCount }} selected</span>
         </div>
       </div>

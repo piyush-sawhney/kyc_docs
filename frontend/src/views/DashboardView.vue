@@ -346,6 +346,7 @@ function onResizeEnd() {
   overflow-y: auto;
   overflow-x: auto;
   height: 100%;
+  scrollbar-gutter: stable;
 }
 .avatar-edit-btn {
   position: absolute;

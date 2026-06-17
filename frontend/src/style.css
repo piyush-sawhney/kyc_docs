@@ -266,6 +266,10 @@ h1, h2, h3, h4, h5, h6,
   padding-left: 0.75rem !important;
   padding-right: 0.25rem !important;
 }
+.table .col-check .form-check-input {
+  width: 16px;
+  height: 16px;
+}
 
 /* ---- Badges Premium ---- */
 .badge {

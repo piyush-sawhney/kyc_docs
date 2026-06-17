@@ -235,9 +235,7 @@ function resetAll() {
 function zoomIn() {
   if (!cropperRef.value || !isReady.value || zoomLevel.value >= MAX_ZOOM) return
   isZooming.value = true
-  const coords = currentCoords.value
   cropperRef.value.zoom(ZOOM_FACTOR)
-  cropperRef.value.setCoordinates(coords, { autoZoom: false })
   zoomLevel.value = Math.min(MAX_ZOOM, zoomLevel.value * ZOOM_FACTOR)
   isZooming.value = false
 }
@@ -245,9 +243,7 @@ function zoomIn() {
 function zoomOut() {
   if (!cropperRef.value || !isReady.value || zoomLevel.value <= MIN_ZOOM) return
   isZooming.value = true
-  const coords = currentCoords.value
   cropperRef.value.zoom(1 / ZOOM_FACTOR)
-  cropperRef.value.setCoordinates(coords, { autoZoom: false })
   zoomLevel.value = Math.max(MIN_ZOOM, zoomLevel.value / ZOOM_FACTOR)
   isZooming.value = false
 }
@@ -322,6 +318,7 @@ function handleWheel(e: WheelEvent) {
                   :src="imageUrl"
                   :stencil-props="{ aspectRatio: null }"
                   :resize-image="{ wheel: false }"
+                  image-restriction="none"
                   :check-orientation="true"
                   :transitions="true"
                   class="cropper-component"
@@ -506,7 +503,9 @@ function handleWheel(e: WheelEvent) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(241, 245, 249);
+  background-color: #f1f5f9;
+  background-image: repeating-conic-gradient(#e2e8f0 0% 25%, transparent 0% 50%);
+  background-size: 16px 16px;
   position: relative;
   overflow: hidden;
   min-height: 300px;
@@ -566,4 +565,7 @@ function handleWheel(e: WheelEvent) {
 }
 .sidebar-input { width: 56px; flex-shrink: 0; text-align: center; }
 .form-range { height: 6px; }
+:deep(.vue-advanced-cropper__background) {
+  background: transparent;
+}
 </style>
