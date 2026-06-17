@@ -20,12 +20,7 @@ export class AuditController {
     @CurrentUser() user?: any,
   ) {
     if (user?.role !== 'admin') {
-      if (!entityId && !userId) {
-        userId = user?.id;
-      }
-      if (entityId && !userId) {
-        userId = user?.id;
-      }
+      userId = user?.id;
     }
     return this.auditService.findAll({
       page: page ? parseInt(page, 10) : 1,

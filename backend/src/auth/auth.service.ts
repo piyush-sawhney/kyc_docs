@@ -1,4 +1,4 @@
-import { Injectable, Inject, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, UnauthorizedException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { eq, and } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
@@ -14,6 +14,8 @@ type Database = PostgresJsDatabase<typeof schema>;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @Inject(DRIZZLE) private db: Database,
     private jwtService: JwtService,
@@ -59,7 +61,7 @@ export class AuthService {
       newValues: { email: user.email },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log login audit', err));
 
     return {
       token,
@@ -101,7 +103,7 @@ export class AuthService {
       newValues: { userId },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log password change audit', err));
 
     return { message: 'Password changed' };
   }
@@ -143,6 +145,54 @@ export class AuthService {
     throw new UnauthorizedException('Invalid recovery code');
   }
 
+  async recoveryResetPassword(email: string, recoveryCode: string, newPassword: string) {
+    const [user] = await this.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user.isActive) throw new UnauthorizedException('Account is deactivated');
+    if (user.isDeleted) throw new UnauthorizedException('Account has been removed');
+
+    const allCodes = await this.db
+      .select()
+      .from(recoveryCodes)
+      .where(and(eq(recoveryCodes.userId, user.id), eq(recoveryCodes.isUsed, false)));
+
+    for (const rc of allCodes) {
+      const match = await bcrypt.compare(recoveryCode.trim().toUpperCase(), rc.codeHash);
+      if (match) {
+        const passwordHash = await bcrypt.hash(newPassword, 12);
+        await this.db
+          .update(users)
+          .set({ passwordHash, mustChangePassword: false, updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+
+        await this.db
+          .update(recoveryCodes)
+          .set({ isUsed: true })
+          .where(eq(recoveryCodes.id, rc.id));
+
+        this.auditService.log({
+          userId: user.id,
+          action: 'PASSWORD_CHANGE',
+          entityType: 'auth',
+          entityId: user.id,
+          description: `${user.fullName} reset their password using a recovery code`,
+          newValues: { email: user.email, userId: user.id },
+          ipAddress: null,
+          userAgent: null,
+        }).catch((err) => this.logger.error('Failed to log recovery password reset audit', err));
+
+        return { message: 'Password reset successfully. You can now log in with your new password.' };
+      }
+    }
+
+    throw new UnauthorizedException('Invalid recovery code');
+  }
+
   async getRecoveryCodes(userId: string) {
     const codes = await this.db
       .select({ id: recoveryCodes.id, isUsed: recoveryCodes.isUsed, createdAt: recoveryCodes.createdAt })
@@ -154,6 +204,15 @@ export class AuthService {
   }
 
   async generateRecoveryCodes(userId: string) {
+    const [targetUser] = await this.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!targetUser || targetUser.role !== 'admin') {
+      throw new ForbiddenException('Recovery codes are only available for admin users');
+    }
+
     await this.db.delete(recoveryCodes).where(eq(recoveryCodes.userId, userId));
 
     const newCodes: string[] = [];
@@ -176,7 +235,7 @@ export class AuthService {
       newValues: { userId },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log recovery codes audit', err));
 
     return { recoveryCodes: newCodes };
   }

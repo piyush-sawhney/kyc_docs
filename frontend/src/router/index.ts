@@ -17,7 +17,7 @@ const router = createRouter({
 
     { path: '/audit-logs', component: () => import('../views/audit/AuditLogView.vue'), meta: { auth: true, admin: true, permission: 'audit:view' } },
     { path: '/change-password', component: () => import('../views/ChangePasswordView.vue'), meta: { auth: true } },
-    { path: '/recovery-codes', component: () => import('../views/RecoveryCodesView.vue'), meta: { auth: true } },
+    { path: '/recovery-codes', component: () => import('../views/RecoveryCodesView.vue'), meta: { auth: true, admin: true } },
   ],
 })
 
@@ -39,6 +39,8 @@ router.beforeEach(async (to, _from, next) => {
   } else if (to.meta.auth && !auth.user) {
     next('/login')
   } else if (to.meta.guest && auth.user) {
+    next('/')
+  } else if ((to.meta as any).admin && auth.user?.role !== 'admin') {
     next('/')
   } else {
     next()

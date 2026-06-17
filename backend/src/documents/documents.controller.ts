@@ -5,12 +5,14 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { DocumentsService } from './documents.service';
 import { RotateDto, CropDto, UpdateDocumentMetadataDto } from './dto/upload-document.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../permissions/guards/permissions.guard';
+import { RequirePermissions } from '../permissions/decorators/permissions.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AuditAction } from '../audit/decorators/audit-action.decorator';
 import { extractMultipart } from './multipart.util';
 
 @Controller('api')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class DocumentsController {
   constructor(private documentsService: DocumentsService) {}
 
@@ -47,6 +49,7 @@ export class DocumentsController {
   }
 
   @Get('documents/:id/download')
+  @RequirePermissions('document:view_file')
   async download(@Param('id') id: string, @Res() reply: FastifyReply) {
     const { buffer, mimetype, filename } = await this.documentsService.download(id);
     reply.header('Content-Type', mimetype);

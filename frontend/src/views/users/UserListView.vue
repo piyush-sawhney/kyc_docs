@@ -23,7 +23,6 @@ const filteredUsers = computed(() => {
   )
 })
 
-const canChangeRole = computed(() => users.value.length > 2)
 const activeCount = computed(() => users.value.filter(u => u.isActive).length)
 
 const resetPasswordDialog = ref(false)
@@ -153,9 +152,6 @@ function initials(name: string) {
       </div>
     </div>
 
-    <div v-if="!canChangeRole" class="alert alert-info d-flex align-items-center py-2 px-3 small mb-3" role="alert">
-      <i class="bi bi-info-circle me-2"></i> Role changes are disabled with {{ users.length }} user(s). Add more users to enable role management.
-    </div>
     <div v-if="toggleError" class="alert alert-danger d-flex align-items-center py-2 px-3 small mb-3" role="alert">
       <i class="bi bi-exclamation-circle me-2"></i> {{ toggleError }}
       <button class="btn-close ms-auto" @click="toggleError = ''" style="font-size: 12px;"></button>
@@ -180,14 +176,15 @@ function initials(name: string) {
                     {{ initials(u.fullName) }}
                   </div>
                   <div>
-                    <span class="fw-medium" style="color: #1E293B;">{{ u.fullName }}</span>
+                    <a class="fw-medium text-decoration-none" style="color: #1E293B; cursor: pointer;"
+                      @click="router.push(`/users/${u.id}`)">{{ u.fullName }}</a>
                     <div><small class="text-muted">{{ u.email }}</small></div>
                   </div>
                 </div>
               </td>
               <td>
                 <select class="form-select form-select-sm" style="max-width: 110px;"
-                  :value="u.role" :disabled="!canChangeRole"
+                  :value="u.role"
                   @change="openRoleConfirm(u, ($event.target as HTMLSelectElement).value)">
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -199,9 +196,9 @@ function initials(name: string) {
               </td>
               <td class="text-end">
                 <div class="d-flex align-items-center justify-content-end gap-1">
-                  <button class="btn btn-sm btn-soft-primary" title="Permissions & Recovery Codes"
+                  <button class="btn btn-sm btn-soft-primary" title="Edit user permissions & recovery codes"
                     @click="router.push(`/users/${u.id}`)">
-                    <i class="bi bi-shield-account"></i>
+                    <i class="bi bi-shield-account me-1"></i> Permissions
                   </button>
                   <button class="btn btn-sm btn-soft-warning" title="Reset password"
                     @click="openResetPassword(u)">

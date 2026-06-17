@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../api/client'
 
 const route = useRoute()
@@ -122,8 +123,9 @@ const groupedPermissions = computed(() => {
   return groups
 })
 
+const auth = useAuthStore()
 const isOwnProfile = computed(() => {
-  return user.value?.id === (window as any).__currentUserId
+  return user.value?.id === auth.user?.id
 })
 
 function toggleSelectAll(perms: any[]) {
@@ -141,7 +143,7 @@ function initials(name: string) {
   return name.charAt(0).toUpperCase()
 }
 
-const canChangeRole = computed(() => totalUsers.value > 2)
+
 </script>
 
 <template>
@@ -152,7 +154,7 @@ const canChangeRole = computed(() => totalUsers.value > 2)
         <small class="text-muted">{{ user?.email }}</small>
       </div>
       <div class="ms-auto d-flex gap-2">
-        <button class="btn btn-outline-secondary" @click="generateRecoveryCodes" :disabled="generatingCodes">
+        <button v-if="user?.role === 'admin'" class="btn btn-outline-secondary" @click="generateRecoveryCodes" :disabled="generatingCodes">
           <span v-if="generatingCodes" class="spinner-border spinner-border-sm me-1"></span>
           <i class="bi bi-shield-key me-1"></i> Recovery Codes
         </button>
@@ -186,19 +188,16 @@ const canChangeRole = computed(() => totalUsers.value > 2)
               <label class="form-label small fw-medium text-muted">Role</label>
               <div class="d-flex gap-2">
                 <select class="form-select" style="max-width: 160px;" v-model="selectedRole"
-                  :disabled="savingRole || !canChangeRole">
+                  :disabled="savingRole">
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
                 <button class="btn btn-primary btn-sm"
-                  :disabled="selectedRole === user?.role || savingRole || !canChangeRole"
+                  :disabled="selectedRole === user?.role || savingRole"
                   @click="confirmRoleChange">
                   Update Role
                 </button>
               </div>
-              <small v-if="!canChangeRole" class="text-muted mt-1 d-block">
-                <i class="bi bi-info-circle me-1"></i>Role changes disabled — only {{ totalUsers }} users in system. Add more users to enable.
-              </small>
             </div>
 
             <div v-if="selectedRole === 'admin'" class="alert alert-warning d-flex align-items-center py-2 px-3 small" role="alert">

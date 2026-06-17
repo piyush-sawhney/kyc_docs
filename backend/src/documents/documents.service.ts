@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { eq, desc, and, inArray, like, not } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as crypto from 'crypto';
@@ -16,6 +16,8 @@ type Database = PostgresJsDatabase<typeof schema>;
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     @Inject(DRIZZLE) private db: Database,
     private encryptionService: EncryptionService,
@@ -412,7 +414,9 @@ export class DocumentsService {
                 clientName: client?.name || 'Unknown',
               };
             }
-          } catch { /* ignore */ }
+          } catch (err) {
+            this.logger.warn(`Failed to decrypt document number for doc ${doc.clientId}`, err);
+          }
         }
       }
     }

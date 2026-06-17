@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as bcrypt from 'bcrypt';
@@ -12,6 +12,8 @@ type Database = PostgresJsDatabase<typeof schema>;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @Inject(DRIZZLE) private db: Database,
     private auditService: AuditService,
@@ -59,7 +61,7 @@ export class UsersService {
       newValues: { id: user.id, email: user.email, fullName: user.fullName, role: user.role },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return user;
   }
@@ -173,7 +175,7 @@ export class UsersService {
       newValues: { id, fullName: user.fullName },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return user;
   }
@@ -202,7 +204,7 @@ export class UsersService {
       newValues: { id, fullName: user.fullName },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return user;
   }
@@ -243,7 +245,7 @@ export class UsersService {
       newValues: { id, email: user.email, fullName: user.fullName },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return deleted;
   }
@@ -278,7 +280,7 @@ export class UsersService {
       newValues: { id, email: user.email, fullName: user.fullName },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return user;
   }
@@ -326,7 +328,7 @@ export class UsersService {
       newValues: { id, email: user.email, fullName: user.fullName, oldRole, newRole: role },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return updated;
   }
@@ -357,7 +359,7 @@ export class UsersService {
       newValues: { id, email: user.email, fullName: user.fullName },
       ipAddress: null,
       userAgent: null,
-    }).catch(() => {});
+    }).catch((err) => this.logger.error('Failed to log audit for user operation', err));
 
     return { tempPassword };
   }

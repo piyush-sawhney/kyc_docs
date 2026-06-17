@@ -94,7 +94,7 @@ function closeMenu() {
               </button>
               <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 py-1" style="min-width: 200px;"
                 :class="{ show: userMenuOpen }">
-                <li>
+                <li v-if="auth.user?.role === 'admin'">
                   <a class="dropdown-item small py-2" href="#" @click.prevent="router.push('/recovery-codes'); closeMenu()">
                     <i class="bi bi-shield-key me-2"></i> Recovery Codes
                   </a>

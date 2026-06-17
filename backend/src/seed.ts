@@ -3,12 +3,16 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
+import { Logger } from '@nestjs/common';
 import * as schema from './database/schema';
 import 'dotenv/config'
+
+const logger = new Logger('Seed');
+
 async function seed() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    console.error('DATABASE_URL environment variable is required');
+    logger.error('DATABASE_URL environment variable is required');
     process.exit(1);
   }
 
@@ -25,7 +29,7 @@ async function seed() {
     .limit(1);
 
   if (existing) {
-    console.log('Admin user already exists. Skipping seed.');
+    logger.log('Admin user already exists. Skipping seed.');
     await queryClient.end();
     return;
   }
@@ -42,7 +46,7 @@ async function seed() {
     })
     .returning();
 
-  console.log('Admin user created:', adminEmail);
+  logger.log('Admin user created: ' + adminEmail);
 
   const defaultDocTypes = ['PAN Card', 'Aadhaar Card', 'Passport', 'Driving License', 'Voter ID'];
   for (const name of defaultDocTypes) {
@@ -50,16 +54,16 @@ async function seed() {
       .insert(schema.documentTypes)
       .values({ name })
       .returning();
-    console.log('Document type created:', name);
+    logger.log('Document type created: ' + name);
   }
 
-  console.log('\nSeed complete!');
-  console.log('Admin login: admin@kyc.com / admin123');
+  logger.log('Seed complete!');
+  logger.log('Admin login: admin@kyc.com / admin123');
 
   await queryClient.end();
 }
 
 seed().catch((err) => {
-  console.error('Seed failed:', err);
+  logger.error('Seed failed: ' + err.message, err.stack);
   process.exit(1);
 });

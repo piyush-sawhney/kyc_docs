@@ -26,3 +26,16 @@ export class RecoveryLoginDto {
   @MinLength(6)
   code: string;
 }
+
+export class RecoveryResetPasswordDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  recoveryCode: string;
+
+  @IsString()
+  @IsStrongPassword()
+  newPassword: string;
+}
