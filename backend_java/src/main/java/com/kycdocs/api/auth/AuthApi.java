@@ -1,8 +1,11 @@
 package com.kycdocs.api.auth;
 
 import com.kycdocs.api.common.ApiResponse;
+import com.kycdocs.api.common.CurrentUser;
 import com.kycdocs.api.common.annotation.PublicApi;
+import com.kycdocs.api.users.dto.UserResponse;
 import com.kycdocs.application.auth.dto.*;
+import com.kycdocs.infrastructure.security.JwtAuthenticationFilter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,16 +51,16 @@ public interface AuthApi {
 
     @Operation(summary = "Initiate TOTP re-enrollment")
     @PostMapping("/totp/re-enroll")
-    ResponseEntity<ApiResponse<Map<String, String>>> reEnroll(@RequestParam String userId);
+    ResponseEntity<ApiResponse<Map<String, String>>> reEnroll(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser);
 
     @Operation(summary = "Verify TOTP re-enrollment")
     @PostMapping("/totp/re-enroll/verify")
-    ResponseEntity<ApiResponse<Map<String, String>>> reEnrollVerify(@RequestParam String userId,
-                                                                      @RequestBody Map<String, String> body);
+    ResponseEntity<ApiResponse<Map<String, String>>> reEnrollVerify(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser,
+                                                                       @RequestBody Map<String, String> body);
 
     @Operation(summary = "Get current user profile")
     @GetMapping("/me")
-    ResponseEntity<ApiResponse<Map<String, Object>>> me(@RequestParam String userId);
+    ResponseEntity<ApiResponse<UserResponse>> me(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser);
 
     @Operation(summary = "Logout")
     @PostMapping("/logout")
@@ -67,15 +70,15 @@ public interface AuthApi {
     @Operation(summary = "List recovery codes (admin)")
     @GetMapping("/recovery-codes")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryCodes(@RequestParam String userId);
+    ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryCodes(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser);
 
     @Operation(summary = "Check if unused recovery codes exist (admin)")
     @GetMapping("/recovery-codes/status")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<ApiResponse<Map<String, Boolean>>> getRecoveryCodesStatus(@RequestParam String userId);
+    ResponseEntity<ApiResponse<Map<String, Boolean>>> getRecoveryCodesStatus(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser);
 
     @Operation(summary = "Generate new recovery codes (admin)")
     @PostMapping("/recovery-codes")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<ApiResponse<List<String>>> generateRecoveryCodes(@RequestParam String userId);
+    ResponseEntity<ApiResponse<List<String>>> generateRecoveryCodes(@CurrentUser JwtAuthenticationFilter.AuthUser currentUser);
 }

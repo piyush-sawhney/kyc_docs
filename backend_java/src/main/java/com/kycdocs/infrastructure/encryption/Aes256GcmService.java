@@ -23,7 +23,8 @@ public class Aes256GcmService {
     private final SecureRandom secureRandom;
 
     public Aes256GcmService(@Value("${app.encryption.key}") String base64Key) {
-        var decoded = Base64.getDecoder().decode(base64Key);
+        var normalized = base64Key.replace('-', '+').replace('_', '/');
+        var decoded = Base64.getDecoder().decode(normalized);
         if (decoded.length != 32) {
             throw new IllegalArgumentException("Encryption key must be 256 bits (32 bytes)");
         }
@@ -83,6 +84,9 @@ public class Aes256GcmService {
     }
 
     public static class EncryptionException extends RuntimeException {
+        public EncryptionException(String message) {
+            super(message);
+        }
         public EncryptionException(String message, Throwable cause) {
             super(message, cause);
         }

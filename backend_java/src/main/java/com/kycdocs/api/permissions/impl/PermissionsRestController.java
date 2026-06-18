@@ -2,8 +2,9 @@ package com.kycdocs.api.permissions.impl;
 
 import com.kycdocs.api.common.ApiResponse;
 import com.kycdocs.api.permissions.PermissionsApi;
+import com.kycdocs.api.permissions.dto.PermissionResponse;
+import com.kycdocs.api.permissions.dto.SetUserPermissionsCommand;
 import com.kycdocs.application.permissions.PermissionsUseCase;
-import com.kycdocs.domain.permission.Permission;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,18 +20,22 @@ public class PermissionsRestController implements PermissionsApi {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<List<Permission>>> listPermissions() {
-        return ResponseEntity.ok(ApiResponse.ok(permissionsUseCase.listAll()));
+    public ResponseEntity<ApiResponse<List<PermissionResponse>>> listPermissions() {
+        var permissions = permissionsUseCase.listAll();
+        var response = permissions.stream().map(PermissionResponse::from).toList();
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<List<Permission>>> getUserPermissions(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(permissionsUseCase.getUserPermissions(userId)));
+    public ResponseEntity<ApiResponse<List<PermissionResponse>>> getUserPermissions(String userId) {
+        var permissions = permissionsUseCase.getUserPermissions(userId);
+        var response = permissions.stream().map(PermissionResponse::from).toList();
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Void>> setUserPermissions(String userId, List<String> permissionKeys) {
-        permissionsUseCase.setUserPermissions(userId, permissionKeys);
-        return ResponseEntity.ok(ApiResponse.ok("Permissions updated"));
+    public ResponseEntity<ApiResponse<Void>> setUserPermissions(String userId, SetUserPermissionsCommand command) {
+        permissionsUseCase.setUserPermissions(userId, command.permissionIds());
+        return ResponseEntity.ok(ApiResponse.message("Permissions updated"));
     }
 }

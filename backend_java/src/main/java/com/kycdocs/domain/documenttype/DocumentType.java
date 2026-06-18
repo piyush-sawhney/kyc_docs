@@ -1,5 +1,6 @@
 package com.kycdocs.domain.documenttype;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kycdocs.shared.BaseEntity;
 
 import java.time.Instant;
@@ -22,6 +23,7 @@ public class DocumentType extends BaseEntity {
     }
 
     public String getName() { return name; }
+    @JsonProperty("isActive")
     public boolean isActive() { return isActive; }
 
     public void updateName(String name) {

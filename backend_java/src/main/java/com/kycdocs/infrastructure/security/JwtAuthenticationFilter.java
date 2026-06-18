@@ -1,6 +1,7 @@
 package com.kycdocs.infrastructure.security;
 
 import com.kycdocs.api.common.annotation.PublicApi;
+import com.kycdocs.infrastructure.persistence.jpa.permission.SpringDataPermissionRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.method.HandlerMethod;
@@ -17,21 +19,26 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final RequestMappingHandlerMapping handlerMapping;
+    private final SpringDataPermissionRepository permissionRepository;
 
     private static final String COOKIE_NAME = "token";
     private static final String BEARER_PREFIX = "Bearer ";
 
     public JwtAuthenticationFilter(JwtTokenProvider tokenProvider,
-                                   RequestMappingHandlerMapping handlerMapping) {
+                                    @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping,
+                                    SpringDataPermissionRepository permissionRepository) {
         this.tokenProvider = tokenProvider;
         this.handlerMapping = handlerMapping;
+        this.permissionRepository = permissionRepository;
     }
 
     @Override
@@ -52,7 +59,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var email = claims.get("email", String.class);
                 var role = claims.get("role", String.class);
 
-                var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                var authorities = new ArrayList<SimpleGrantedAuthority>();
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                try {
+                    var uuid = UUID.fromString(userId);
+                    var permissionKeys = permissionRepository.findByUserId(uuid);
+                    for (var perm : permissionKeys) {
+                        authorities.add(new SimpleGrantedAuthority(perm.getKey()));
+                    }
+                } catch (Exception e) {
+                    // log and continue with role-only authority
+                }
                 var authentication = new UsernamePasswordAuthenticationToken(
                     new AuthUser(userId, email, role), null, authorities
                 );

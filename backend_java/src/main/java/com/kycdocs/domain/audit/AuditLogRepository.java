@@ -10,5 +10,7 @@ public interface AuditLogRepository {
 
     List<AuditLog> findAll(int page, int size);
 
+    long count();
+
     AuditLog save(AuditLog auditLog);
 }

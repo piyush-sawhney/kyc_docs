@@ -1,6 +1,7 @@
 package com.kycdocs.application.documents;
 
 import com.kycdocs.domain.document.Document;
+import com.kycdocs.domain.document.FileDownload;
 
 import java.util.List;
 import java.util.Map;
@@ -19,7 +20,7 @@ public interface DocumentUseCase {
 
     List<Document> getDocumentGroup(String groupId);
 
-    Document.FileDownload download(String id);
+    FileDownload download(String id);
 
     Document replaceFile(String id, byte[] fileData, String originalFilename, String mimeType, int fileSize, String userId);
 

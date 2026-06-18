@@ -2,10 +2,13 @@ package com.kycdocs.api.auth.impl;
 
 import com.kycdocs.api.auth.AuthApi;
 import com.kycdocs.api.common.ApiResponse;
+import com.kycdocs.api.users.dto.UserResponse;
 import com.kycdocs.application.auth.AuthUseCase;
 import com.kycdocs.application.auth.dto.*;
+import com.kycdocs.infrastructure.security.JwtAuthenticationFilter;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,9 +19,12 @@ import java.util.Map;
 public class AuthRestController implements AuthApi {
 
     private final AuthUseCase authUseCase;
+    private final boolean cookieSecure;
 
-    public AuthRestController(AuthUseCase authUseCase) {
+    public AuthRestController(AuthUseCase authUseCase,
+                              @Value("${app.cookie.secure}") boolean cookieSecure) {
         this.authUseCase = authUseCase;
+        this.cookieSecure = cookieSecure;
     }
 
     @Override
@@ -60,53 +66,54 @@ public class AuthRestController implements AuthApi {
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Map<String, String>>> reEnroll(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.reEnroll(userId)));
+    public ResponseEntity<ApiResponse<Map<String, String>>> reEnroll(JwtAuthenticationFilter.AuthUser currentUser) {
+        return ResponseEntity.ok(ApiResponse.ok(authUseCase.reEnroll(currentUser.userId())));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Map<String, String>>> reEnrollVerify(String userId,
-                                                                            Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> reEnrollVerify(JwtAuthenticationFilter.AuthUser currentUser,
+                                                                             Map<String, String> body) {
         var totpCode = body != null ? body.getOrDefault("totpCode", "") : "";
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.reEnrollVerify(userId, totpCode)));
+        return ResponseEntity.ok(ApiResponse.ok(authUseCase.reEnrollVerify(currentUser.userId(), totpCode)));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Map<String, Object>>> me(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.getProfile(userId)));
+    public ResponseEntity<ApiResponse<UserResponse>> me(JwtAuthenticationFilter.AuthUser currentUser) {
+        var user = authUseCase.getProfile(currentUser.userId());
+        return ResponseEntity.ok(ApiResponse.ok(UserResponse.from(user)));
     }
 
     @Override
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
         var cookie = new Cookie("token", null);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
-        return ResponseEntity.ok(ApiResponse.ok("Logged out"));
+        return ResponseEntity.ok(ApiResponse.message("Logged out"));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryCodes(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.getRecoveryCodes(userId)));
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecoveryCodes(JwtAuthenticationFilter.AuthUser currentUser) {
+        return ResponseEntity.ok(ApiResponse.ok(authUseCase.getRecoveryCodes(currentUser.userId())));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<Map<String, Boolean>>> getRecoveryCodesStatus(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.getRecoveryCodesStatus(userId)));
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> getRecoveryCodesStatus(JwtAuthenticationFilter.AuthUser currentUser) {
+        return ResponseEntity.ok(ApiResponse.ok(authUseCase.getRecoveryCodesStatus(currentUser.userId())));
     }
 
     @Override
-    public ResponseEntity<ApiResponse<List<String>>> generateRecoveryCodes(String userId) {
-        return ResponseEntity.ok(ApiResponse.ok(authUseCase.generateRecoveryCodes(userId)));
+    public ResponseEntity<ApiResponse<List<String>>> generateRecoveryCodes(JwtAuthenticationFilter.AuthUser currentUser) {
+        return ResponseEntity.ok(ApiResponse.ok(authUseCase.generateRecoveryCodes(currentUser.userId())));
     }
 
     private void setTokenCookie(HttpServletResponse response, String token) {
         if (token == null) return;
         var cookie = new Cookie("token", token);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(cookieSecure);
         cookie.setPath("/");
         cookie.setMaxAge(86400);
         cookie.setAttribute("SameSite", "Strict");

@@ -27,8 +27,14 @@ public class JpaAuditLogRepositoryAdapter implements AuditLogRepository {
 
     @Override
     public List<AuditLog> findAll(int page, int size) {
-        return springRepo.findAllByOrderByCreatedAtDesc(PageRequest.of(page, size))
+        var pageIndex = Math.max(0, page - 1);
+        return springRepo.findAllByOrderByCreatedAtDesc(PageRequest.of(pageIndex, size))
             .stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
+    public long count() {
+        return springRepo.count();
     }
 
     @Override

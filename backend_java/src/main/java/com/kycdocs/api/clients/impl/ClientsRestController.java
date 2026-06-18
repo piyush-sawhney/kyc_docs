@@ -4,12 +4,14 @@ import com.kycdocs.api.clients.ClientsApi;
 import com.kycdocs.api.common.ApiResponse;
 import com.kycdocs.api.common.annotation.AuditAction;
 import com.kycdocs.application.clients.ClientsUseCase;
+import com.kycdocs.application.clients.dto.CreateClientCommand;
+import com.kycdocs.application.clients.dto.MergeClientsCommand;
+import com.kycdocs.application.clients.dto.UpdateClientCommand;
 import com.kycdocs.domain.client.Client;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 public class ClientsRestController implements ClientsApi {
@@ -32,9 +34,9 @@ public class ClientsRestController implements ClientsApi {
 
     @Override
     @AuditAction(entityType = "client", action = "CREATE")
-    public ResponseEntity<ApiResponse<Client>> createClient(Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Client>> createClient(CreateClientCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            clientsUseCase.createClient(body.get("name"), body.get("createdBy"))
+            clientsUseCase.createClient(command.name(), null)
         ));
     }
 
@@ -45,17 +47,17 @@ public class ClientsRestController implements ClientsApi {
 
     @Override
     @AuditAction(entityType = "client", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Client>> updateClient(String id, Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Client>> updateClient(String id, UpdateClientCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            clientsUseCase.updateClient(id, body.get("name"), body.get("avatar"))
+            clientsUseCase.updateClient(id, command.name(), command.avatar())
         ));
     }
 
     @Override
     @AuditAction(entityType = "client", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Client>> patchClient(String id, Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Client>> patchClient(String id, UpdateClientCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            clientsUseCase.updateClient(id, body.get("name"), body.get("avatar"))
+            clientsUseCase.updateClient(id, command.name(), command.avatar())
         ));
     }
 
@@ -63,20 +65,20 @@ public class ClientsRestController implements ClientsApi {
     @AuditAction(entityType = "client", action = "DELETE")
     public ResponseEntity<ApiResponse<Void>> deleteClient(String id) {
         clientsUseCase.softDeleteClient(id, null);
-        return ResponseEntity.ok(ApiResponse.ok("Client deleted"));
+        return ResponseEntity.ok(ApiResponse.message("Client deleted"));
     }
 
     @Override
     @AuditAction(entityType = "client", action = "UPDATE")
     public ResponseEntity<ApiResponse<Void>> restoreClient(String id) {
         clientsUseCase.restoreClient(id);
-        return ResponseEntity.ok(ApiResponse.ok("Client restored"));
+        return ResponseEntity.ok(ApiResponse.message("Client restored"));
     }
 
     @Override
     @AuditAction(entityType = "client", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Void>> mergeClients(String id, Map<String, String> body) {
-        clientsUseCase.mergeClients(id, body.get("targetClientId"));
-        return ResponseEntity.ok(ApiResponse.ok("Clients merged"));
+    public ResponseEntity<ApiResponse<Void>> mergeClients(String id, MergeClientsCommand command) {
+        clientsUseCase.mergeClients(id, command.targetClientId());
+        return ResponseEntity.ok(ApiResponse.message("Clients merged"));
     }
 }

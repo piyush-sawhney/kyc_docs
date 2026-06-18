@@ -1,4 +1,4 @@
-CREATE TABLE client_documents (
+CREATE TABLE IF NOT EXISTS client_documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID NOT NULL REFERENCES clients(id),
     document_type_id UUID NOT NULL REFERENCES document_types(id),
@@ -22,7 +22,7 @@ CREATE TABLE client_documents (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_client_documents_client_id ON client_documents(client_id);
-CREATE INDEX idx_client_documents_document_type_id ON client_documents(document_type_id);
-CREATE INDEX idx_client_documents_document_group_id ON client_documents(document_group_id);
-CREATE INDEX idx_client_documents_is_deleted ON client_documents(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_client_documents_client_id ON client_documents(client_id);
+CREATE INDEX IF NOT EXISTS idx_client_documents_document_type_id ON client_documents(document_type_id);
+CREATE INDEX IF NOT EXISTS idx_client_documents_document_group_id ON client_documents(document_group_id);
+CREATE INDEX IF NOT EXISTS idx_client_documents_is_deleted ON client_documents(is_deleted);

@@ -1,15 +1,18 @@
 package com.kycdocs.api.clients;
 
 import com.kycdocs.api.common.ApiResponse;
+import com.kycdocs.application.clients.dto.CreateClientCommand;
+import com.kycdocs.application.clients.dto.MergeClientsCommand;
+import com.kycdocs.application.clients.dto.UpdateClientCommand;
 import com.kycdocs.domain.client.Client;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @Tag(name = "Clients")
 @RequestMapping("/api/clients")
@@ -28,7 +31,7 @@ public interface ClientsApi {
     @Operation(summary = "Create client")
     @PostMapping
     @PreAuthorize("hasAuthority('client:create')")
-    ResponseEntity<ApiResponse<Client>> createClient(@RequestBody Map<String, String> body);
+    ResponseEntity<ApiResponse<Client>> createClient(@Valid @RequestBody CreateClientCommand command);
 
     @Operation(summary = "Get client with documents")
     @GetMapping("/{id}")
@@ -38,12 +41,14 @@ public interface ClientsApi {
     @Operation(summary = "Update client")
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('client:update')")
-    ResponseEntity<ApiResponse<Client>> updateClient(@PathVariable String id, @RequestBody Map<String, String> body);
+    ResponseEntity<ApiResponse<Client>> updateClient(@PathVariable String id,
+                                                     @Valid @RequestBody UpdateClientCommand command);
 
     @Operation(summary = "Partial update client")
     @PatchMapping("/{id}")
     @PreAuthorize("hasAuthority('client:update')")
-    ResponseEntity<ApiResponse<Client>> patchClient(@PathVariable String id, @RequestBody Map<String, String> body);
+    ResponseEntity<ApiResponse<Client>> patchClient(@PathVariable String id,
+                                                    @Valid @RequestBody UpdateClientCommand command);
 
     @Operation(summary = "Soft-delete client")
     @DeleteMapping("/{id}")
@@ -58,5 +63,6 @@ public interface ClientsApi {
     @Operation(summary = "Merge source client into target")
     @PostMapping("/{id}/merge")
     @PreAuthorize("hasAuthority('client:merge')")
-    ResponseEntity<ApiResponse<Void>> mergeClients(@PathVariable String id, @RequestBody Map<String, String> body);
+    ResponseEntity<ApiResponse<Void>> mergeClients(@PathVariable String id,
+                                                    @Valid @RequestBody MergeClientsCommand command);
 }

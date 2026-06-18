@@ -28,7 +28,7 @@ public class AuditUseCaseImpl implements AuditUseCase {
         } else {
             var logs = auditLogRepository.findAll(page, limit);
             result.put("data", logs);
-            result.put("total", logs.size());
+            result.put("total", auditLogRepository.count());
         }
 
         result.put("page", page);

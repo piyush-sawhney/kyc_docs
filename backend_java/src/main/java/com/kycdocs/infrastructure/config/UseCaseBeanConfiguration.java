@@ -24,6 +24,7 @@ import com.kycdocs.domain.documenttype.DocumentTypeRepository;
 import com.kycdocs.domain.permission.PermissionRepository;
 import com.kycdocs.domain.user.UserRepository;
 import com.kycdocs.infrastructure.persistence.jpa.permission.SpringDataUserPermissionRepository;
+import com.kycdocs.infrastructure.QrCodeGenerator;
 import com.kycdocs.infrastructure.security.JwtTokenProvider;
 import com.kycdocs.infrastructure.security.TotpProvider;
 import com.kycdocs.service.auth.RecoveryCodeService;
@@ -41,10 +42,11 @@ public class UseCaseBeanConfiguration {
                                    RecoveryCodeRepository recoveryCodeRepository,
                                    RecoveryCodeService recoveryCodeService,
                                    TotpProvider totpProvider,
-                                   JwtTokenProvider jwtTokenProvider) {
+                                   JwtTokenProvider jwtTokenProvider,
+                                   QrCodeGenerator qrCodeGenerator) {
         return new AuthUseCaseImpl(
             userRepository, recoveryCodeRepository,
-            recoveryCodeService, totpProvider, jwtTokenProvider
+            recoveryCodeService, totpProvider, jwtTokenProvider, qrCodeGenerator
         );
     }
 
@@ -90,10 +92,11 @@ public class UseCaseBeanConfiguration {
                                      DocumentTypeRepository documentTypeRepository,
                                      TotpProvider totpProvider,
                                      JwtTokenProvider jwtTokenProvider,
-                                     RecoveryCodeService recoveryCodeService) {
+                                     RecoveryCodeService recoveryCodeService,
+                                     QrCodeGenerator qrCodeGenerator) {
         return new SetupUseCaseImpl(
             userRepository, permissionRepository, userPermissionRepository,
-            documentTypeRepository, totpProvider, jwtTokenProvider, recoveryCodeService
+            documentTypeRepository, totpProvider, jwtTokenProvider, recoveryCodeService, qrCodeGenerator
         );
     }
 }

@@ -66,6 +66,10 @@ public class UsersUseCaseImpl implements UsersUseCase {
     @Override
     public void softDeleteUser(String userId) {
         var user = getUser(userId);
+        if (user.getRole().isAdmin()) {
+            var adminCount = userRepository.countActiveByRole(UserRole.ADMIN);
+            adminSafetyPolicy.ensureCanDeactivateAdmin(adminCount);
+        }
         var deletedBy = user.getId();
         user.softDelete(deletedBy);
         userRepository.save(user);

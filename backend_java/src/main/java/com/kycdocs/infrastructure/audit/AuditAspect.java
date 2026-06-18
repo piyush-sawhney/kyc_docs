@@ -4,14 +4,14 @@ import com.kycdocs.api.common.annotation.AuditAction;
 import com.kycdocs.domain.audit.AuditLog;
 import com.kycdocs.domain.audit.AuditLogRepository;
 import com.kycdocs.domain.user.UserId;
-import com.kycdocs.infrastructure.security.JwtAuthenticationFilter;
+import com.kycdocs.infrastructure.security.JwtAuthenticationFilter.AuthUser;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -77,8 +77,8 @@ public class AuditAspect {
     }
 
     private String extractUserId(HttpServletRequest request) {
-        var auth = request.getUserPrincipal();
-        if (auth != null && auth instanceof JwtAuthenticationFilter.AuthUser authUser) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof AuthUser authUser) {
             return authUser.userId();
         }
         return null;

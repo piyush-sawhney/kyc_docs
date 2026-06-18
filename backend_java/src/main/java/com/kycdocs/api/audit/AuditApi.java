@@ -15,7 +15,7 @@ public interface AuditApi {
     @Operation(summary = "List audit logs")
     @GetMapping
     ResponseEntity<ApiResponse<Map<String, Object>>> listAuditLogs(
-        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "1") int page,
         @RequestParam(defaultValue = "50") int limit,
         @RequestParam(required = false) String entityType,
         @RequestParam(required = false) String action,

@@ -6,5 +6,5 @@ import java.util.UUID;
 
 public interface SpringDataUserPermissionRepository extends JpaRepository<UserPermissionJpaEntity, UserPermissionJpaEntity.UserPermissionId> {
 
-    void deleteByUserId(UUID userId);
+    void deleteByIdUserId(UUID userId);
 }

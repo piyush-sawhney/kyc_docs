@@ -5,15 +5,16 @@ spring:
   application:
     name: kyc-docs
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/kyc_docs}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5434/kyc_docs}
     username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:postgres}
+    password: ${DATABASE_PASSWORD:Piyush@123}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
       idle-timeout: 30000
       max-lifetime: 600000
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: false
@@ -41,8 +42,10 @@ app:
     issuer: kyc-docs
   totp:
     issuer: KYC-Docs
+  cookie:
+    secure: ${COOKIE_SECURE:false}
   encryption:
-    key: ${ENCRYPTION_KEY:change-me-in-production-use-a-256-bit-key}
+    key: ${ENCRYPTION_KEY:FumfxEfX30gTdIqkfR7vP9HldqG7BmZ0sX+4sKgf+Yw=}
   cors:
     allowed-origins: ${CORS_ORIGINS:http://localhost:5173}
   rate-limiting:

@@ -1,5 +1,6 @@
 package com.kycdocs.domain.user;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kycdocs.shared.SoftDeletableEntity;
 
 import java.time.Instant;
@@ -33,7 +34,9 @@ public class User extends SoftDeletableEntity {
     public String getFullName() { return fullName; }
     public UserRole getRole() { return role; }
     public String getTotpSecret() { return totpSecret; }
+    @JsonProperty("totpVerified")
     public boolean isTotpVerified() { return totpVerified; }
+    @JsonProperty("isActive")
     public boolean isActive() { return isActive; }
 
     public void deactivate() {

@@ -2,12 +2,12 @@ package com.kycdocs.application.auth.impl;
 
 import com.kycdocs.application.auth.AuthUseCase;
 import com.kycdocs.application.auth.dto.*;
-import com.kycdocs.domain.auth.RecoveryCode;
 import com.kycdocs.domain.auth.RecoveryCodeRepository;
 import com.kycdocs.domain.user.Email;
 import com.kycdocs.domain.user.User;
 import com.kycdocs.domain.user.UserId;
 import com.kycdocs.domain.user.UserRepository;
+import com.kycdocs.infrastructure.QrCodeGenerator;
 import com.kycdocs.infrastructure.security.JwtTokenProvider;
 import com.kycdocs.infrastructure.security.TotpProvider;
 import com.kycdocs.service.auth.RecoveryCodeService;
@@ -24,17 +24,20 @@ public class AuthUseCaseImpl implements AuthUseCase {
     private final RecoveryCodeService recoveryCodeService;
     private final TotpProvider totpProvider;
     private final JwtTokenProvider jwtTokenProvider;
+    private final QrCodeGenerator qrCodeGenerator;
 
     public AuthUseCaseImpl(UserRepository userRepository,
                            RecoveryCodeRepository recoveryCodeRepository,
                            RecoveryCodeService recoveryCodeService,
                            TotpProvider totpProvider,
-                           JwtTokenProvider jwtTokenProvider) {
+                           JwtTokenProvider jwtTokenProvider,
+                           QrCodeGenerator qrCodeGenerator) {
         this.userRepository = userRepository;
         this.recoveryCodeRepository = recoveryCodeRepository;
         this.recoveryCodeService = recoveryCodeService;
         this.totpProvider = totpProvider;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.qrCodeGenerator = qrCodeGenerator;
     }
 
     @Override
@@ -57,7 +60,8 @@ public class AuthUseCaseImpl implements AuthUseCase {
         var enrollToken = jwtTokenProvider.generateToken(
             user.getId().toString(), user.getEmail().value(), "ENROLL"
         );
-        var qrDataUrl = totpProvider.generateTotpUri(secret, user.getEmail().value());
+        var totpUri = totpProvider.generateTotpUri(secret, user.getEmail().value());
+        var qrDataUrl = qrCodeGenerator.generateDataUrl(totpUri);
 
         return new LoginInitResult(false, enrollToken, qrDataUrl);
     }
@@ -80,11 +84,11 @@ public class AuthUseCaseImpl implements AuthUseCase {
         }
 
         var token = jwtTokenProvider.generateToken(
-            user.getId(), user.getEmail(), user.getRole()
+            new UserId(user.getId()), user.getEmail().value(), user.getRole()
         );
 
         var recoveryCodesMissing = user.getRole().isAdmin()
-            && !recoveryCodeService.hasUnusedCodes(user.getId());
+            && !recoveryCodeService.hasUnusedCodes(new UserId(user.getId()));
 
         return new LoginResult(token, user.getId().toString(), user.getEmail().value(),
             user.getRole().getValue(), recoveryCodesMissing, null);
@@ -110,12 +114,12 @@ public class AuthUseCaseImpl implements AuthUseCase {
         userRepository.save(user);
 
         var token = jwtTokenProvider.generateToken(
-            user.getId(), user.getEmail(), user.getRole()
+            new UserId(user.getId()), user.getEmail().value(), user.getRole()
         );
 
         List<String> recoveryCodes = List.of();
         if (user.getRole().isAdmin()) {
-            recoveryCodes = recoveryCodeService.generateRecoveryCodes(user.getId());
+            recoveryCodes = recoveryCodeService.generateRecoveryCodes(new UserId(user.getId()));
         }
 
         return new TotpEnrollResult(true, token, user.getId().toString(), recoveryCodes);
@@ -130,16 +134,16 @@ public class AuthUseCaseImpl implements AuthUseCase {
             throw new UnauthorizedException("Account is deactivated or deleted");
         }
 
-        if (!recoveryCodeService.verifyRecoveryCode(user.getId(), command.recoveryCode())) {
+        if (!recoveryCodeService.verifyRecoveryCode(new UserId(user.getId()), command.code())) {
             throw new UnauthorizedException("Invalid recovery code");
         }
 
         var token = jwtTokenProvider.generateToken(
-            user.getId(), user.getEmail(), user.getRole()
+            new UserId(user.getId()), user.getEmail().value(), user.getRole()
         );
 
         var recoveryCodesMissing = user.getRole().isAdmin()
-            && !recoveryCodeService.hasUnusedCodes(user.getId());
+            && !recoveryCodeService.hasUnusedCodes(new UserId(user.getId()));
 
         return new RecoveryLoginResult(token, user.getId().toString(),
             user.getEmail().value(), user.getRole().getValue(), recoveryCodesMissing);
@@ -156,7 +160,8 @@ public class AuthUseCaseImpl implements AuthUseCase {
             throw new ValidationException("No enrollment in progress");
         }
 
-        return Map.of("qrDataUrl", totpProvider.generateTotpUri(user.getTotpSecret(), user.getEmail().value()));
+        var totpUri = totpProvider.generateTotpUri(user.getTotpSecret(), user.getEmail().value());
+        return Map.of("qrDataUrl", qrCodeGenerator.generateDataUrl(totpUri));
     }
 
     @Override
@@ -168,7 +173,8 @@ public class AuthUseCaseImpl implements AuthUseCase {
         user.assignTotpSecret(newSecret);
         userRepository.save(user);
 
-        return Map.of("qrDataUrl", totpProvider.generateTotpUri(newSecret, user.getEmail().value()));
+        var totpUri = totpProvider.generateTotpUri(newSecret, user.getEmail().value());
+        return Map.of("qrDataUrl", qrCodeGenerator.generateDataUrl(totpUri));
     }
 
     @Override
@@ -206,7 +212,7 @@ public class AuthUseCaseImpl implements AuthUseCase {
     @Override
     public List<Map<String, Object>> getRecoveryCodes(String userId) {
         var codes = recoveryCodeRepository.findByUserId(UserId.fromString(userId));
-        return codes.stream().map(c -> {
+        return codes.stream().<Map<String, Object>>map(c -> {
             var m = new HashMap<String, Object>();
             m.put("id", c.getId());
             m.put("isUsed", c.isUsed());
@@ -226,18 +232,8 @@ public class AuthUseCaseImpl implements AuthUseCase {
     }
 
     @Override
-    public Map<String, Object> getProfile(String userId) {
-        var user = userRepository.findById(UserId.fromString(userId))
-            .orElseThrow(() -> new NotFoundException("User not found"));
-        var result = new HashMap<String, Object>();
-        result.put("id", user.getId().toString());
-        result.put("email", user.getEmail().value());
-        result.put("fullName", user.getFullName());
-        result.put("role", user.getRole().getValue());
-        result.put("isActive", user.isActive());
-        result.put("totpVerified", user.isTotpVerified());
-        result.put("createdAt", user.getCreatedAt());
-        result.put("updatedAt", user.getUpdatedAt());
-        return result;
+    public User getProfile(String userId) {
+        return userRepository.findById(UserId.fromString(userId))
+            .orElseThrow(() -> new NotFoundException("User", userId));
     }
 }

@@ -4,6 +4,9 @@ import com.kycdocs.api.common.ApiResponse;
 import com.kycdocs.api.common.annotation.AuditAction;
 import com.kycdocs.api.documents.DocumentsApi;
 import com.kycdocs.application.documents.DocumentUseCase;
+import com.kycdocs.application.documents.dto.CropImageCommand;
+import com.kycdocs.application.documents.dto.RotateImageCommand;
+import com.kycdocs.application.documents.dto.UpdateDocumentMetadataCommand;
 import com.kycdocs.domain.document.Document;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -26,12 +29,16 @@ public class DocumentsRestController implements DocumentsApi {
     @Override
     @AuditAction(entityType = "document", action = "CREATE")
     public ResponseEntity<ApiResponse<Document>> uploadDocument(String clientId, MultipartFile file,
-                                                                 String documentTypeId, String side) {
+                                                                 String documentTypeId, String side,
+                                                                 String documentNumber, String documentGroupId,
+                                                                 String issueDate, String expiryDate) {
         try {
             var doc = documentUseCase.upload(
-                clientId, documentTypeId, "UNKNOWN", side,
+                clientId, documentTypeId,
+                documentNumber != null ? documentNumber : "UNKNOWN",
+                side,
                 file.getBytes(), file.getOriginalFilename(), file.getContentType(),
-                (int) file.getSize(), null, null, null, null
+                (int) file.getSize(), documentGroupId, issueDate, expiryDate, null
             );
             return ResponseEntity.ok(ApiResponse.ok(doc));
         } catch (Exception e) {
@@ -84,7 +91,11 @@ public class DocumentsRestController implements DocumentsApi {
 
     @Override
     @AuditAction(entityType = "document", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Document>> updateMetadata(String id, Map<String, Object> metadata) {
+    public ResponseEntity<ApiResponse<Document>> updateMetadata(String id, UpdateDocumentMetadataCommand command) {
+        var metadata = new java.util.HashMap<String, Object>();
+        if (command.documentTypeId() != null) metadata.put("documentTypeId", command.documentTypeId());
+        if (command.issueDate() != null) metadata.put("issueDate", command.issueDate());
+        if (command.expiryDate() != null) metadata.put("expiryDate", command.expiryDate());
         return ResponseEntity.ok(ApiResponse.ok(documentUseCase.updateMetadata(id, metadata, null)));
     }
 
@@ -92,7 +103,7 @@ public class DocumentsRestController implements DocumentsApi {
     @AuditAction(entityType = "document", action = "DELETE")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(String id) {
         documentUseCase.softDelete(id, null);
-        return ResponseEntity.ok(ApiResponse.ok("Document deleted"));
+        return ResponseEntity.ok(ApiResponse.message("Document deleted"));
     }
 
     @Override
@@ -103,19 +114,18 @@ public class DocumentsRestController implements DocumentsApi {
 
     @Override
     @AuditAction(entityType = "document", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Document>> rotateImage(String id, Map<String, Integer> body) {
+    public ResponseEntity<ApiResponse<Document>> rotateImage(String id, RotateImageCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            documentUseCase.rotate(id, body.getOrDefault("angle", 0), null)
+            documentUseCase.rotate(id, command.angle(), null)
         ));
     }
 
     @Override
     @AuditAction(entityType = "document", action = "UPDATE")
-    public ResponseEntity<ApiResponse<Document>> cropImage(String id, Map<String, Integer> body) {
+    public ResponseEntity<ApiResponse<Document>> cropImage(String id, CropImageCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            documentUseCase.crop(id,
-                body.getOrDefault("left", 0), body.getOrDefault("top", 0),
-                body.getOrDefault("width", 100), body.getOrDefault("height", 100), null)
+            documentUseCase.crop(id, command.left(), command.top(),
+                command.width(), command.height(), null)
         ));
     }
 

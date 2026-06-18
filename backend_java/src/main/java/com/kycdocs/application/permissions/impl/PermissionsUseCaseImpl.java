@@ -29,14 +29,14 @@ public class PermissionsUseCaseImpl implements PermissionsUseCase {
 
     @Override
     public List<Permission> getUserPermissions(String userId) {
-        return permissionRepository.findByUserId(PermissionId.fromString(userId));
+        return permissionRepository.findByUserId(UserId.fromString(userId));
     }
 
     @Override
     public void setUserPermissions(String userId, List<String> permissionIds) {
         var userIdUuid = UserId.fromString(userId).value();
 
-        userPermissionRepository.deleteByUserId(userIdUuid);
+        userPermissionRepository.deleteByIdUserId(userIdUuid);
 
         for (var permId : permissionIds) {
             var perm = permissionRepository.findById(PermissionId.fromString(permId))

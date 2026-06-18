@@ -1,6 +1,7 @@
 package com.kycdocs.application.auth;
 
 import com.kycdocs.application.auth.dto.*;
+import com.kycdocs.domain.user.User;
 
 import java.util.List;
 import java.util.Map;
@@ -29,5 +30,5 @@ public interface AuthUseCase {
 
     List<String> generateRecoveryCodes(String userId);
 
-    Map<String, Object> getProfile(String userId);
+    User getProfile(String userId);
 }

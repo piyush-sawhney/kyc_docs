@@ -3,6 +3,7 @@ package com.kycdocs.infrastructure.persistence.jpa.permission;
 import com.kycdocs.domain.permission.Permission;
 import com.kycdocs.domain.permission.PermissionId;
 import com.kycdocs.domain.permission.PermissionRepository;
+import com.kycdocs.domain.user.UserId;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -35,7 +36,7 @@ public class JpaPermissionRepositoryAdapter implements PermissionRepository {
     }
 
     @Override
-    public List<Permission> findByUserId(PermissionId userId) {
+    public List<Permission> findByUserId(UserId userId) {
         return springRepo.findByUserId(userId.value()).stream().map(mapper::toDomain).toList();
     }
 

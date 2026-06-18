@@ -1,5 +1,7 @@
 package com.kycdocs.shared;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -16,6 +18,7 @@ public abstract class SoftDeletableEntity extends BaseEntity {
         this.isDeleted = false;
     }
 
+    @JsonProperty("isDeleted")
     public boolean isDeleted() { return isDeleted; }
     public Instant getDeletedAt() { return deletedAt; }
     public UUID getDeletedBy() { return deletedBy; }

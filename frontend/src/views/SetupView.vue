@@ -48,7 +48,7 @@ async function handleVerify() {
   }
 }
 
-function downloadCodes() {
+function downloadAndGo() {
   const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -56,9 +56,6 @@ function downloadCodes() {
   a.download = 'recovery-codes.txt'
   a.click()
   URL.revokeObjectURL(url)
-}
-
-function goToDashboard() {
   router.push('/')
 }
 
@@ -155,14 +152,9 @@ async function copyCode(code: string) {
             </div>
           </div>
 
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-primary flex-fill" @click="downloadCodes">
-              <i class="bi bi-download me-1"></i> Download Codes
-            </button>
-            <button class="btn btn-primary flex-fill" @click="goToDashboard">
-              <i class="bi bi-box-arrow-in-right me-1"></i> Go to Dashboard
-            </button>
-          </div>
+          <button class="btn btn-primary w-100 btn-lg" @click="downloadAndGo">
+            <i class="bi bi-download me-1"></i> Download Recovery Codes
+          </button>
         </div>
       </div>
     </div>

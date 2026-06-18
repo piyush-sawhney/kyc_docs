@@ -7,12 +7,11 @@ const api = axios.create({
 })
 
 api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401 && !window.location.pathname.startsWith('/login')) {
-      window.location.href = '/login'
+  (response) => {
+    if (response.data && 'success' in response.data && response.data.success) {
+      response.data = response.data.data
     }
-    return Promise.reject(err)
+    return response
   },
 )
 

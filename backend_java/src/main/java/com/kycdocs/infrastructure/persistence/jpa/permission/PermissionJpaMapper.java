@@ -15,7 +15,7 @@ public class PermissionJpaMapper {
         entity.setId(domain.getId());
         entity.setKey(domain.getKey());
         entity.setLabel(domain.getLabel());
-        entity.setGroup(domain.getGroup());
+        entity.setPermissionGroup(domain.getPermissionGroup());
         return entity;
     }
 
@@ -27,7 +27,7 @@ public class PermissionJpaMapper {
             Instant.now(),
             entity.getKey(),
             entity.getLabel(),
-            entity.getGroup()
+            entity.getPermissionGroup()
         );
     }
 }

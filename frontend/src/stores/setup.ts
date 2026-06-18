@@ -11,7 +11,7 @@ export const useSetupStore = defineStore('setup', () => {
       const { data } = await api.get('/setup/status')
       needsSetup.value = data.needsSetup
     } catch {
-      needsSetup.value = false
+      needsSetup.value = true
     } finally {
       initialized.value = true
     }

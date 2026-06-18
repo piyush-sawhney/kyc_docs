@@ -1,5 +1,7 @@
 package com.kycdocs.domain.permission;
 
+import com.kycdocs.domain.user.UserId;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +13,7 @@ public interface PermissionRepository {
 
     List<Permission> findAll();
 
-    List<Permission> findByUserId(PermissionId userId);
+    List<Permission> findByUserId(UserId userId);
 
     Permission save(Permission permission);
 }

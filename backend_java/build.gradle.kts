@@ -10,13 +10,7 @@ version = "0.0.1-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom(configurations.annotationProcessor.get())
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -53,10 +47,9 @@ dependencies {
     implementation("com.google.zxing:javase:3.5.3")
 
     // Image processing (replaces Sharp)
-    implementation("com.twelvemonkeys.imageio:imageio-core:3.12.1")
-    implementation("com.twelvemonkeys.imageio:imageio-jpeg:3.12.1")
-    implementation("com.twelvemonkeys.imageio:imageio-png:3.12.1")
-    implementation("com.twelvemonkeys.imageio:imageio-tiff:3.12.1")
+    implementation("com.twelvemonkeys.imageio:imageio-core:3.13.1")
+    implementation("com.twelvemonkeys.imageio:imageio-jpeg:3.13.1")
+    implementation("com.twelvemonkeys.imageio:imageio-tiff:3.13.1")
 
     // Rate limiting
     implementation("com.bucket4j:bucket4j-core:8.10.1")
@@ -64,9 +57,8 @@ dependencies {
     // Observability
     implementation("net.logstash.logback:logstash-logback-encoder:8.0")
 
-    // Development
-    compileOnly("org.projectlombok:lombok")
-    annotationProcessor("org.projectlombok:lombok")
+    // .env file support
+    implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
     // Testing
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -75,6 +67,10 @@ dependencies {
     testImplementation("org.testcontainers:postgresql:1.20.4")
     testImplementation("org.testcontainers:junit-jupiter:1.20.4")
     testImplementation("io.rest-assured:rest-assured:5.5.1")
+}
+
+tasks.withType<JavaCompile> {
+    options.compilerArgs.add("-parameters")
 }
 
 tasks.withType<Test> {

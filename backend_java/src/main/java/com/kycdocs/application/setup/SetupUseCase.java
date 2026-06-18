@@ -1,5 +1,7 @@
 package com.kycdocs.application.setup;
 
+import com.kycdocs.application.setup.dto.SetupVerifyResult;
+
 import java.util.Map;
 
 public interface SetupUseCase {
@@ -8,5 +10,5 @@ public interface SetupUseCase {
 
     Map<String, Object> init(String email, String fullName);
 
-    Map<String, Object> verify(String setupToken, String totpCode);
+    SetupVerifyResult verify(String setupToken, String totpCode);
 }

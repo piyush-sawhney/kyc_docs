@@ -16,8 +16,8 @@ public class PermissionJpaEntity {
     @Column(nullable = false, length = 200)
     private String label;
 
-    @Column(name = "\"group\"", nullable = false, length = 100)
-    private String group;
+    @Column(name = "permission_group", nullable = false, length = 100)
+    private String permissionGroup;
 
     public PermissionJpaEntity() {}
 
@@ -27,6 +27,6 @@ public class PermissionJpaEntity {
     public void setKey(String key) { this.key = key; }
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = label; }
-    public String getGroup() { return group; }
-    public void setGroup(String group) { this.group = group; }
+    public String getPermissionGroup() { return permissionGroup; }
+    public void setPermissionGroup(String permissionGroup) { this.permissionGroup = permissionGroup; }
 }

@@ -1,5 +1,6 @@
 package com.kycdocs.domain.auth;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kycdocs.domain.user.UserId;
 import com.kycdocs.shared.BaseEntity;
 
@@ -22,6 +23,7 @@ public class RecoveryCode extends BaseEntity {
 
     public UserId getUserId() { return userId; }
     public String getCodeHash() { return codeHash; }
+    @JsonProperty("isUsed")
     public boolean isUsed() { return isUsed; }
 
     public void markAsUsed() {

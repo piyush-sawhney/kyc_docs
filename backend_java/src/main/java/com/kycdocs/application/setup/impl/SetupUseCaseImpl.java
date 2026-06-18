@@ -1,11 +1,13 @@
 package com.kycdocs.application.setup.impl;
 
 import com.kycdocs.application.setup.SetupUseCase;
+import com.kycdocs.application.setup.dto.SetupVerifyResult;
 import com.kycdocs.domain.documenttype.DocumentType;
 import com.kycdocs.domain.documenttype.DocumentTypeRepository;
 import com.kycdocs.domain.permission.Permission;
 import com.kycdocs.domain.permission.PermissionRepository;
 import com.kycdocs.domain.user.*;
+import com.kycdocs.infrastructure.QrCodeGenerator;
 import com.kycdocs.infrastructure.persistence.jpa.permission.SpringDataUserPermissionRepository;
 import com.kycdocs.infrastructure.persistence.jpa.permission.UserPermissionJpaEntity;
 import com.kycdocs.infrastructure.security.JwtTokenProvider;
@@ -24,6 +26,7 @@ public class SetupUseCaseImpl implements SetupUseCase {
     private final TotpProvider totpProvider;
     private final JwtTokenProvider jwtTokenProvider;
     private final RecoveryCodeService recoveryCodeService;
+    private final QrCodeGenerator qrCodeGenerator;
 
     public SetupUseCaseImpl(UserRepository userRepository,
                             PermissionRepository permissionRepository,
@@ -31,7 +34,8 @@ public class SetupUseCaseImpl implements SetupUseCase {
                             DocumentTypeRepository documentTypeRepository,
                             TotpProvider totpProvider,
                             JwtTokenProvider jwtTokenProvider,
-                            RecoveryCodeService recoveryCodeService) {
+                            RecoveryCodeService recoveryCodeService,
+                            QrCodeGenerator qrCodeGenerator) {
         this.userRepository = userRepository;
         this.permissionRepository = permissionRepository;
         this.userPermissionRepository = userPermissionRepository;
@@ -39,6 +43,7 @@ public class SetupUseCaseImpl implements SetupUseCase {
         this.totpProvider = totpProvider;
         this.jwtTokenProvider = jwtTokenProvider;
         this.recoveryCodeService = recoveryCodeService;
+        this.qrCodeGenerator = qrCodeGenerator;
     }
 
     @Override
@@ -53,58 +58,47 @@ public class SetupUseCaseImpl implements SetupUseCase {
             throw new ValidationException("System is already set up");
         }
 
+        var secret = totpProvider.generateSecret();
+        var totpUri = totpProvider.generateTotpUri(secret, email);
+        var qrDataUrl = qrCodeGenerator.generateDataUrl(totpUri);
+
+        var userId = UUID.randomUUID().toString();
+        var setupToken = jwtTokenProvider.generateSetupToken(
+            userId, email, fullName, UserRole.ADMIN.getValue(), secret
+        );
+
+        return Map.of("qrDataUrl", qrDataUrl, "setupToken", setupToken);
+    }
+
+    @Override
+    public SetupVerifyResult verify(String setupToken, String totpCode) {
+        var claims = jwtTokenProvider.validateToken(setupToken);
+
+        var email = claims.get("email", String.class);
+        var fullName = claims.get("fullName", String.class);
+        var secret = claims.get("totpSecret", String.class);
+
+        if (!totpProvider.verify(totpCode, secret)) {
+            throw new ValidationException("Invalid TOTP code");
+        }
+
         var emailVo = new Email(email);
         var user = User.create(emailVo, fullName, UserRole.ADMIN);
-        var secret = totpProvider.generateSecret();
         user.assignTotpSecret(secret);
+        user.verifyTotp();
         userRepository.save(user);
 
         seedDefaultPermissions();
         seedDefaultDocumentTypes();
+        assignAllPermissions(new UserId(user.getId()));
 
-        var qrDataUrl = totpProvider.generateTotpUri(secret, email);
-        var setupToken = jwtTokenProvider.generateToken(
-            user.getId().toString(), email, "SETUP"
-        );
-
-        var result = new HashMap<String, Object>();
-        result.put("qrDataUrl", qrDataUrl);
-        result.put("setupToken", setupToken);
-        return result;
-    }
-
-    @Override
-    public Map<String, Object> verify(String setupToken, String totpCode) {
-        var claims = jwtTokenProvider.validateToken(setupToken);
-        var userId = UserId.fromString(claims.getSubject());
-
-        var user = userRepository.findById(userId)
-            .orElseThrow(() -> new ValidationException("User not found"));
-
-        if (!totpProvider.verify(totpCode, user.getTotpSecret())) {
-            throw new ValidationException("Invalid TOTP code");
-        }
-
-        user.verifyTotp();
-        userRepository.save(user);
-
-        assignAllPermissions(userId);
-        var recoveryCodes = recoveryCodeService.generateRecoveryCodes(user.getId());
+        var recoveryCodes = recoveryCodeService.generateRecoveryCodes(new UserId(user.getId()));
 
         var token = jwtTokenProvider.generateToken(
-            user.getId(), user.getEmail(), user.getRole()
+            new UserId(user.getId()), user.getEmail().value(), user.getRole()
         );
 
-        var result = new HashMap<String, Object>();
-        result.put("token", token);
-        result.put("user", Map.of(
-            "id", user.getId().toString(),
-            "email", user.getEmail().value(),
-            "fullName", user.getFullName(),
-            "role", user.getRole().getValue()
-        ));
-        result.put("recoveryCodes", recoveryCodes);
-        return result;
+        return new SetupVerifyResult(token, user, recoveryCodes);
     }
 
     private void seedDefaultPermissions() {

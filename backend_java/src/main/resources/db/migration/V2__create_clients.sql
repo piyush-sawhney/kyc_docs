@@ -1,4 +1,4 @@
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     avatar TEXT,
@@ -10,5 +10,5 @@ CREATE TABLE clients (
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_clients_is_deleted ON clients(is_deleted);
-CREATE INDEX idx_clients_created_by ON clients(created_by);
+CREATE INDEX IF NOT EXISTS idx_clients_is_deleted ON clients(is_deleted);
+CREATE INDEX IF NOT EXISTS idx_clients_created_by ON clients(created_by);

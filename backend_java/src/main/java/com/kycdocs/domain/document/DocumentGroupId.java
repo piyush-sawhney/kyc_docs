@@ -14,6 +14,10 @@ public record DocumentGroupId(UUID value) {
         return new DocumentGroupId(UUID.randomUUID());
     }
 
+    public static DocumentGroupId fromString(String id) {
+        return new DocumentGroupId(UUID.fromString(id));
+    }
+
     @Override
     public String toString() {
         return value.toString();

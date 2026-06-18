@@ -12,6 +12,6 @@ public interface SpringDataPermissionRepository extends JpaRepository<Permission
 
     Optional<PermissionJpaEntity> findByKey(String key);
 
-    @Query("SELECT p FROM PermissionJpaEntity p JOIN user_permissions up ON p.id = up.permissionId WHERE up.userId = :userId")
+    @Query("SELECT p FROM PermissionJpaEntity p JOIN UserPermissionJpaEntity up ON p.id = up.id.permissionId WHERE up.id.userId = :userId")
     List<PermissionJpaEntity> findByUserId(@Param("userId") UUID userId);
 }

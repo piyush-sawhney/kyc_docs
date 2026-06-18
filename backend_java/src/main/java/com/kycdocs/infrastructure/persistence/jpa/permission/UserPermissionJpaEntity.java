@@ -12,20 +12,14 @@ public class UserPermissionJpaEntity {
     @EmbeddedId
     private UserPermissionId id;
 
-    @Column(name = "user_id", insertable = false, updatable = false)
-    private UUID userId;
-
-    @Column(name = "permission_id", insertable = false, updatable = false)
-    private UUID permissionId;
-
     public UserPermissionJpaEntity() {}
 
     public UserPermissionJpaEntity(UUID userId, UUID permissionId) {
         this.id = new UserPermissionId(userId, permissionId);
     }
 
-    public UUID getUserId() { return userId; }
-    public UUID getPermissionId() { return permissionId; }
+    public UUID getUserId() { return id != null ? id.userId : null; }
+    public UUID getPermissionId() { return id != null ? id.permissionId : null; }
 
     @Embeddable
     public static class UserPermissionId implements Serializable {

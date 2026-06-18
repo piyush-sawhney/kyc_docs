@@ -3,9 +3,13 @@ package com.kycdocs.api.setup.impl;
 import com.kycdocs.api.common.ApiResponse;
 import com.kycdocs.api.common.annotation.PublicApi;
 import com.kycdocs.api.setup.SetupApi;
+import com.kycdocs.api.users.dto.UserResponse;
+import com.kycdocs.application.auth.dto.SetupInitCommand;
+import com.kycdocs.application.auth.dto.SetupVerifyCommand;
 import com.kycdocs.application.setup.SetupUseCase;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -15,9 +19,12 @@ import java.util.Map;
 public class SetupRestController implements SetupApi {
 
     private final SetupUseCase setupUseCase;
+    private final boolean cookieSecure;
 
-    public SetupRestController(SetupUseCase setupUseCase) {
+    public SetupRestController(SetupUseCase setupUseCase,
+                               @Value("${app.cookie.secure}") boolean cookieSecure) {
         this.setupUseCase = setupUseCase;
+        this.cookieSecure = cookieSecure;
     }
 
     @Override
@@ -28,27 +35,29 @@ public class SetupRestController implements SetupApi {
 
     @Override
     @PublicApi
-    public ResponseEntity<ApiResponse<Map<String, Object>>> initSetup(Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> initSetup(SetupInitCommand command) {
         return ResponseEntity.ok(ApiResponse.ok(
-            setupUseCase.init(body.get("email"), body.get("fullName"))
+            setupUseCase.init(command.email(), command.fullName())
         ));
     }
 
     @Override
     @PublicApi
-    public ResponseEntity<ApiResponse<Map<String, Object>>> verifySetup(Map<String, String> body,
-                                                                         HttpServletResponse response) {
-        var result = setupUseCase.verify(body.get("setupToken"), body.get("totpCode"));
-        if (result.containsKey("token")) {
-            var cookie = new Cookie("token", (String) result.get("token"));
-            cookie.setHttpOnly(true);
-            cookie.setSecure(true);
-            cookie.setPath("/");
-            cookie.setMaxAge(86400);
-            cookie.setAttribute("SameSite", "Strict");
-            response.addCookie(cookie);
-            result.remove("token");
-        }
-        return ResponseEntity.ok(ApiResponse.ok(result));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifySetup(SetupVerifyCommand command,
+                                                                          HttpServletResponse response) {
+        var result = setupUseCase.verify(command.setupToken(), command.totpCode());
+
+        var cookie = new Cookie("token", result.token());
+        cookie.setHttpOnly(true);
+        cookie.setSecure(cookieSecure);
+        cookie.setPath("/");
+        cookie.setMaxAge(86400);
+        cookie.setAttribute("SameSite", "Strict");
+        response.addCookie(cookie);
+
+        var body = new java.util.HashMap<String, Object>();
+        body.put("user", UserResponse.from(result.user()));
+        body.put("recoveryCodes", result.recoveryCodes());
+        return ResponseEntity.ok(ApiResponse.ok(body));
     }
 }

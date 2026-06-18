@@ -40,7 +40,7 @@ async function load() {
     user.value = usr.data
     selectedRole.value = usr.data.role
     allPermissions.value = perms.data
-    userPermissionIds.value = userPerms.data.map((p: any) => p.permissionId)
+    userPermissionIds.value = userPerms.data.map((p: any) => p.id)
     totalUsers.value = allUsers.data.length
   } catch { /* ignore */ }
   loading.value = false

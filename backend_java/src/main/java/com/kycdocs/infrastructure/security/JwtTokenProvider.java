@@ -57,6 +57,25 @@ public class JwtTokenProvider {
             .compact();
     }
 
+    public String generateSetupToken(String userId, String email, String fullName,
+                                      String role, String totpSecret) {
+        var now = new Date();
+        var expiry = new Date(now.getTime() + expirationMs);
+
+        return Jwts.builder()
+            .issuer(issuer)
+            .subject(userId)
+            .claim("email", email)
+            .claim("fullName", fullName)
+            .claim("role", role)
+            .claim("totpSecret", totpSecret)
+            .claim("purpose", "SETUP")
+            .issuedAt(now)
+            .expiration(expiry)
+            .signWith(secretKey)
+            .compact();
+    }
+
     public Claims validateToken(String token) {
         try {
             return Jwts.parser()
