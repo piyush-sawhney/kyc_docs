@@ -17,12 +17,13 @@ const step = ref<'qr' | 'codes'>('qr')
 
 onMounted(async () => {
   const token = route.query.token as string
+  const email = route.query.email as string
   if (!token) {
     router.push('/login')
     return
   }
   try {
-    const { data } = await api.get('/auth/totp/enroll-qr', { params: { token } })
+    const { data } = await api.get('/auth/qr', { params: { email } })
     qrDataUrl.value = data.qrDataUrl
   } catch {
     error.value = 'Invalid or expired enrollment link. Please log in again.'

@@ -9,7 +9,7 @@ export const useSetupStore = defineStore('setup', () => {
   async function checkStatus() {
     try {
       const { data } = await api.get('/setup/status')
-      needsSetup.value = data.needsSetup
+      needsSetup.value = (data as Record<string, boolean>).needsSetup
     } catch {
       needsSetup.value = true
     } finally {
@@ -28,5 +28,10 @@ export const useSetupStore = defineStore('setup', () => {
     return data
   }
 
-  return { needsSetup, initialized, checkStatus, setupInit, setupVerify }
+  async function setupConfirm(confirmToken: string) {
+    const { data } = await api.post('/setup/confirm', { confirmToken })
+    return data
+  }
+
+  return { needsSetup, initialized, checkStatus, setupInit, setupVerify, setupConfirm }
 })

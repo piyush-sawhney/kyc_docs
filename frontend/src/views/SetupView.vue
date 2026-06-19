@@ -13,8 +13,10 @@ const email = ref('')
 const fullName = ref('')
 const totpCode = ref('')
 const setupToken = ref('')
+const confirmToken = ref('')
 const qrDataUrl = ref('')
 const loading = ref(false)
+const loadingConfirm = ref(false)
 const error = ref('')
 const recoveryCodes = ref<string[]>([])
 
@@ -38,7 +40,7 @@ async function handleVerify() {
   error.value = ''
   try {
     const result = await setup.setupVerify(setupToken.value, totpCode.value)
-    auth.user = result.user
+    confirmToken.value = result.confirmToken
     recoveryCodes.value = result.recoveryCodes
     step.value = 3
   } catch (err: any) {
@@ -48,15 +50,29 @@ async function handleVerify() {
   }
 }
 
-function downloadAndGo() {
-  const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'recovery-codes.txt'
-  a.click()
-  URL.revokeObjectURL(url)
-  router.push('/')
+async function downloadAndGo() {
+  loadingConfirm.value = true
+  error.value = ''
+  try {
+    const result = await setup.setupConfirm(confirmToken.value)
+    auth.token = result.token
+    localStorage.setItem('token', result.token)
+    auth.user = result.user
+
+    const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'recovery-codes.txt'
+    a.click()
+    URL.revokeObjectURL(url)
+
+    router.push('/')
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Confirmation failed'
+  } finally {
+    loadingConfirm.value = false
+  }
 }
 
 async function copyCode(code: string) {
@@ -152,7 +168,8 @@ async function copyCode(code: string) {
             </div>
           </div>
 
-          <button class="btn btn-primary w-100 btn-lg" @click="downloadAndGo">
+          <button class="btn btn-primary w-100 btn-lg" :disabled="loadingConfirm" @click="downloadAndGo">
+            <span v-if="loadingConfirm" class="spinner-border spinner-border-sm me-2" role="status"></span>
             <i class="bi bi-download me-1"></i> Download Recovery Codes
           </button>
         </div>
