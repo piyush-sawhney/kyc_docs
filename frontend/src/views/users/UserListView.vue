@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../api/client'
 
 const router = useRouter()
+const auth = useAuthStore()
 const users = ref<any[]>([])
-const deletedUsers = ref<any[]>([])
 const loading = ref(true)
 const search = ref('')
 const showDeleted = ref(false)
@@ -15,6 +16,8 @@ const pendingRole = ref<string>('user')
 const roleChangeLoading = ref(false)
 const roleChangeError = ref('')
 
+const canViewDeleted = computed(() => auth.user?.role === 'admin')
+
 const filteredUsers = computed(() => {
   if (!search.value) return users.value
   const q = search.value.toLowerCase()
@@ -23,21 +26,30 @@ const filteredUsers = computed(() => {
   )
 })
 
-const activeCount = computed(() => users.value.filter(u => u.isActive).length)
+const activeCount = computed(() => users.value.filter(u => u.isActive && !u.isDeleted).length)
+const deletedCount = computed(() => users.value.filter(u => u.isDeleted).length)
 
 const toggleError = ref('')
 
+async function fetchUsers() {
+  const url = showDeleted.value && canViewDeleted.value
+    ? '/users?include_deleted=true'
+    : '/users'
+  const { data } = await api.get(url)
+  users.value = data.users
+}
+
 onMounted(async () => {
   try {
-    const [active, deleted] = await Promise.all([
-      api.get('/users'),
-      api.get('/users/deleted'),
-    ])
-    users.value = active.data.users
-    deletedUsers.value = deleted.data.users
+    await fetchUsers()
   } catch { /* ignore */ }
   loading.value = false
 })
+
+async function toggleShowDeleted() {
+  showDeleted.value = !showDeleted.value
+  await fetchUsers()
+}
 
 async function toggleActive(user: any) {
   toggleError.value = ''
@@ -58,9 +70,7 @@ async function softDeleteUser(user: any) {
   if (!confirmed) return
   try {
     await api.delete(`/users/${user.id}`)
-    users.value = users.value.filter((u) => u.id !== user.id)
-    const { data } = await api.get('/users/deleted')
-    deletedUsers.value = data.users
+    await fetchUsers()
   } catch { /* ignore */ }
 }
 
@@ -69,12 +79,7 @@ async function restoreUser(userId: string) {
   if (!confirmed) return
   try {
     await api.post(`/users/${userId}/restore`)
-    const [active, deleted] = await Promise.all([
-      api.get('/users'),
-      api.get('/users/deleted'),
-    ])
-    users.value = active.data.users
-    deletedUsers.value = deleted.data.users
+    await fetchUsers()
   } catch { /* ignore */ }
 }
 
@@ -112,9 +117,17 @@ function initials(name: string) {
     <div class="d-flex align-items-center mb-3">
       <div>
         <h5 class="fw-bold mb-0" style="color: #1E293B;">Users</h5>
-        <small class="text-muted">{{ users.length }} active user(s)</small>
+        <small class="text-muted">
+          {{ users.length }} user(s)
+          <span v-if="deletedCount > 0"> &middot; {{ deletedCount }} deleted</span>
+        </small>
       </div>
       <div class="ms-auto d-flex align-items-center gap-2">
+        <div class="form-check form-switch mb-0" v-if="canViewDeleted" title="Show deleted users">
+          <input class="form-check-input" type="checkbox" role="switch" id="showDeletedToggle"
+            :checked="showDeleted" @change="toggleShowDeleted">
+          <label class="form-check-label small text-muted" for="showDeletedToggle">Show deleted</label>
+        </div>
         <div class="input-group" style="max-width: 280px;">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
           <input type="text" class="form-control" v-model="search" placeholder="Search by name or email..." />
@@ -143,33 +156,43 @@ function initials(name: string) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in filteredUsers" :key="u.id" :class="{ 'opacity-50': !u.isActive }">
+            <tr v-for="u in filteredUsers" :key="u.id"
+              :class="{ 'opacity-50': !u.isActive, 'table-danger': u.isDeleted }">
               <td>
                 <div class="d-flex align-items-center gap-3">
-                  <div class="avatar-initials" :style="u.isActive ? 'background: rgba(30,58,95,0.08); color: #1E3A5F;' : 'background: #F1F5F9; color: #94A3B8;'">
+                  <div class="avatar-initials"
+                    :style="u.isDeleted ? 'background: #FEE2E2; color: #DC2626;' : u.isActive ? 'background: rgba(30,58,95,0.08); color: #1E3A5F;' : 'background: #F1F5F9; color: #94A3B8;'">
                     {{ initials(u.fullName) }}
                   </div>
                   <div>
                     <a class="fw-medium text-decoration-none" style="color: #1E293B; cursor: pointer;"
                       @click="router.push(`/users/${u.id}`)">{{ u.fullName }}</a>
                     <div><small class="text-muted">{{ u.email }}</small></div>
+                    <small v-if="u.deletedAt" class="text-danger">Deleted {{ new Date(u.deletedAt).toLocaleString() }}</small>
                   </div>
                 </div>
               </td>
               <td>
                 <select class="form-select form-select-sm" style="max-width: 110px;"
                   :value="u.role"
+                  :disabled="u.isDeleted"
                   @change="openRoleConfirm(u, ($event.target as HTMLSelectElement).value)">
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
                 </select>
               </td>
               <td>
-                <span v-if="u.isActive" class="badge bg-soft-success">Active</span>
+                <span v-if="u.isDeleted" class="badge bg-danger">Deleted</span>
+                <span v-else-if="u.isActive" class="badge bg-soft-success">Active</span>
                 <span v-else class="badge bg-soft-danger">Inactive</span>
               </td>
               <td class="text-end">
-                <div class="d-flex align-items-center justify-content-end gap-1">
+                <div v-if="u.isDeleted" class="d-flex align-items-center justify-content-end gap-1">
+                  <button class="btn btn-sm btn-soft-success" title="Restore user" @click="restoreUser(u.id)">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restore
+                  </button>
+                </div>
+                <div v-else class="d-flex align-items-center justify-content-end gap-1">
                   <button class="btn btn-sm btn-soft-primary" title="Edit user permissions & recovery codes"
                     @click="router.push(`/users/${u.id}`)">
                     <i class="bi bi-shield-account me-1"></i> Permissions
@@ -196,49 +219,6 @@ function initials(name: string) {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <div v-if="deletedUsers.length > 0" class="card border-0 shadow-sm mt-3 overflow-hidden" style="border-radius: 12px;">
-      <div class="card-header bg-white d-flex align-items-center gap-2 py-2 px-3" role="button" @click="showDeleted = !showDeleted"
-        style="cursor: pointer;">
-        <i class="bi bi-trash text-muted"></i>
-        <small class="fw-medium text-muted">Deleted Users ({{ deletedUsers.length }})</small>
-        <i class="bi ms-auto" :class="showDeleted ? 'bi-chevron-up' : 'bi-chevron-down'" style="color: #94A3B8;"></i>
-      </div>
-      <div v-if="showDeleted">
-        <div class="table-responsive">
-          <table class="table mb-0">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Deleted At</th>
-                <th class="text-end" style="width: 100px;">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="u in deletedUsers" :key="u.id" class="opacity-50">
-                <td>
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="avatar-initials" style="background: #F1F5F9; color: #94A3B8;">
-                      {{ initials(u.fullName) }}
-                    </div>
-                    <div>
-                      <span class="fw-medium" style="color: #1E293B;">{{ u.fullName }}</span>
-                      <div><small class="text-muted">{{ u.email }}</small></div>
-                    </div>
-                  </div>
-                </td>
-                <td><small class="text-muted">{{ u.deletedAt ? new Date(u.deletedAt).toLocaleString() : '-' }}</small></td>
-                <td class="text-end">
-                  <button class="btn btn-sm btn-soft-success" title="Restore user" @click="restoreUser(u.id)">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
 

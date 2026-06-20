@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_deleted: bool
     totp_verified: bool
+    deleted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

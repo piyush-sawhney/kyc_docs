@@ -37,6 +37,7 @@ def _user_to_response(user: User) -> UserResponse:
         is_active=user.is_active,
         is_deleted=user.is_deleted,
         totp_verified=user.totp_verified,
+        deleted_at=user.deleted_at,
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -66,13 +67,23 @@ def _user_to_deactivate_response(user: User) -> UserDeactivateResponse:
 
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
+    include_deleted: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if include_deleted:
+        user_perms = await current_user.get_permissions()
+        if "user:view" not in user_perms and "permission:manage" not in user_perms:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission 'user:view' required",
+            )
     service = UserService(db)
-    users, total = await service.get_users(skip=skip, limit=limit)
+    users, total = await service.get_users(
+        skip=skip, limit=limit, include_deleted=include_deleted
+    )
     return UserListResponse(
         users=[_user_to_response(u) for u in users],
         total=total,
