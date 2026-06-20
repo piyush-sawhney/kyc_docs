@@ -90,12 +90,20 @@ def generate_recovery_codes(count: int = 5) -> list[str]:
     return [secrets.token_hex(4).upper() for _ in range(count)]
 
 
-def encrypt_field(value: str) -> tuple[str, int]:
-    return field_encryption.encrypt(value)
+def create_encrypted_row_key() -> tuple[bytes, str]:
+    return field_encryption.create_row_key()
 
 
-def decrypt_field(ciphertext: str, version: int) -> str:
-    return field_encryption.decrypt(ciphertext, version)
+def unwrap_row_key(dek_encrypted: str) -> bytes:
+    return field_encryption.unwrap_row_key(dek_encrypted)
+
+
+def encrypt_field(value: str, dek: bytes) -> str:
+    return field_encryption.encrypt(value, dek)
+
+
+def decrypt_field(ciphertext: str, dek: bytes) -> str:
+    return field_encryption.decrypt(ciphertext, dek)
 
 
 def blind_index(value: str) -> str:

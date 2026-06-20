@@ -5,6 +5,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.core.encryption import field_encryption
 from app.core.security import (
     create_access_token,
     generate_qr_code,
@@ -62,6 +63,13 @@ class SetupService:
             is_active=False,
             totp_verified=False,
         )
+        self.db.add(admin)
+        await self.db.flush()
+
+        # Self-referential created_by to avoid null leak of super admin status
+        dek = admin._ensure_dek()
+        created_by_cipher = field_encryption.encrypt(str(admin.id), dek)
+        object.__setattr__(admin, "created_by_encrypted", created_by_cipher)
         self.db.add(admin)
         await self.db.flush()
 

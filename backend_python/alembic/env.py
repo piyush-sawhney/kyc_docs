@@ -10,9 +10,6 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-# Set dummy encryption key for migrations (not used for actual encryption)
-os.environ.setdefault("ENCRYPTION_MASTER_KEY", "tSsaEgy9pqCK5FVaetqY1ApdNcR0Sal1XeOJUXVsagE=")
-
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings
@@ -23,11 +20,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Use offline URL for autogenerate (no DB connection needed)
-if context.is_offline_mode():
-    config.set_main_option("sqlalchemy.url", "postgresql+asyncpg://postgres:postgres@localhost:5432/kyc_docs")
-else:
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 

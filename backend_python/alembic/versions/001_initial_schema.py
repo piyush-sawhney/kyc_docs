@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("created_by_encrypted", sa.String(length=500), nullable=True),
         sa.Column("modified_by_encrypted", sa.String(length=500), nullable=True),
         sa.Column("email_hash", sa.String(length=64), nullable=False),
-        sa.Column("encryption_version", sa.Integer(), nullable=False, default=1),
+        sa.Column("dek_encrypted", sa.String(length=500), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, default=True),
         sa.Column("is_deleted", sa.Boolean(), nullable=False, default=False),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),

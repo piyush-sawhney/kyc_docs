@@ -16,7 +16,6 @@ async def test_setup_init(client):
         json={
             "email": "admin@example.com",
             "full_name": "Admin User",
-            "username": "admin",
         },
     )
     assert response.status_code == 200
@@ -32,7 +31,6 @@ async def test_setup_init_twice_fails(client):
         json={
             "email": "admin@example.com",
             "full_name": "Admin User",
-            "username": "admin",
         },
     )
     response = await client.post(
@@ -40,7 +38,6 @@ async def test_setup_init_twice_fails(client):
         json={
             "email": "admin2@example.com",
             "full_name": "Admin Two",
-            "username": "admin2",
         },
     )
     assert response.status_code == 400
@@ -54,7 +51,6 @@ async def test_setup_status_after_init(client):
         json={
             "email": "admin@example.com",
             "full_name": "Admin User",
-            "username": "admin",
         },
     )
     response = await client.get("/api/v1/setup/status")

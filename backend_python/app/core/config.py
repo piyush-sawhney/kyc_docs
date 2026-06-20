@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,16 +13,18 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/kyc_docs"
+        default="",
+        description="PostgreSQL connection string",
     )
 
-    ENCRYPTION_MASTER_KEY: str = Field(
+    ENCRYPTION_KEYS: str = Field(
         default="",
-        description="Base64url-encoded 32-byte key for Fernet encryption",
+        description="Semicolon-separated version:base64url-key pairs"
+        " (e.g. '1:<key>;2:<key>')",
     )
 
     JWT_SECRET_KEY: str = Field(
-        default="your-super-secret-jwt-key-change-in-production",
+        default="",
         description="Secret key for JWT signing",
     )
     JWT_ALGORITHM: str = Field(default="HS256")
@@ -33,6 +35,16 @@ class Settings(BaseSettings):
     APP_PORT: int = Field(default=8000)
 
     CORS_ORIGINS: str = Field(default="http://localhost:5173,http://localhost:3000")
+
+    @model_validator(mode="after")
+    def check_required(self) -> "Settings":
+        if not self.DATABASE_URL:
+            raise ValueError("DATABASE_URL must be set in environment or .env file")
+        if not self.JWT_SECRET_KEY:
+            raise ValueError("JWT_SECRET_KEY must be set in environment or .env file")
+        if not self.ENCRYPTION_KEYS:
+            raise ValueError("ENCRYPTION_KEYS must be set in environment or .env file")
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

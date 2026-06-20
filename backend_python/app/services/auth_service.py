@@ -82,9 +82,7 @@ class AuthService:
             raise ValueError("Invalid TOTP code")
 
         # Delete old unused recovery codes
-        await self.db.exec(
-            delete(RecoveryCode).where(RecoveryCode.user_id == user.id)
-        )
+        await self.db.exec(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
 
         # Generate fresh recovery codes
         recovery_codes = generate_recovery_codes(5)

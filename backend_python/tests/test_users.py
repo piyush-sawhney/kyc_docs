@@ -8,20 +8,14 @@ from app.models.user import User
 
 @pytest_asyncio.fixture
 async def auth_token(db_session):
-
-    enc_email, ver = field_encryption.encrypt("admin@example.com")
-    enc_name, _ = field_encryption.encrypt("Admin User")
-    enc_username, _ = field_encryption.encrypt("admin")
-    enc_role, _ = field_encryption.encrypt("admin")
+    dek, dek_encrypted = field_encryption.create_row_key()
 
     user = User(
-        email_encrypted=enc_email,
-        full_name_encrypted=enc_name,
-        username_encrypted=enc_username,
-        role_encrypted=enc_role,
+        dek_encrypted=dek_encrypted,
+        email_encrypted=field_encryption.encrypt("admin@example.com", dek),
+        full_name_encrypted=field_encryption.encrypt("Admin User", dek),
+        role_encrypted=field_encryption.encrypt("admin", dek),
         email_hash=field_encryption.blind_index("admin@example.com"),
-        username_hash=field_encryption.blind_index("admin"),
-        role_hash=field_encryption.blind_index("admin"),
         is_active=True,
         totp_verified=False,
     )

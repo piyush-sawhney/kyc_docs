@@ -1,5 +1,7 @@
 import asyncio
+import base64
 import os
+import secrets
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -10,14 +12,15 @@ from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 # Must set before any app imports
-os.environ["ENCRYPTION_MASTER_KEY"] = "tSsaEgy9pqCK5FVaetqY1ApdNcR0Sal1XeOJUXVsagE="
+test_encryption_key = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
+os.environ["ENCRYPTION_KEYS"] = f"1:{test_encryption_key}"
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite://"
 os.environ["APP_ENV"] = "test"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-not-for-production"
 os.environ["CORS_ORIGINS"] = "http://localhost:5173"
 
-from app.core.deps import get_db
-from app.main import app
+from app.core.deps import get_db  # noqa: E402
+from app.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="session")
