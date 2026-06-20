@@ -17,6 +17,7 @@ def create_access_token(
     email: str,
     role: str,
     expires_delta: timedelta | None = None,
+    **extra: str,
 ) -> str:
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
@@ -31,6 +32,7 @@ def create_access_token(
         "role": role,
         "exp": expire,
         "iat": datetime.now(UTC),
+        **extra,
     }
     return jwt.encode(
         to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM

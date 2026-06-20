@@ -35,7 +35,9 @@ class UserService:
         ua = request.headers.get("user-agent")
         return ip, ua
 
-    async def create_user(self, data: UserCreate) -> User:
+    async def create_user(
+        self, data: UserCreate, created_by: UUID | None = None
+    ) -> User:
         email_hash = blind_index(data.email)
         existing = await self.db.exec(
             select(User).where(User.email_hash == email_hash, User.is_deleted == False)
@@ -43,12 +45,11 @@ class UserService:
         if existing.first():
             raise ValueError("A user with this email already exists")
 
-        totp_secret = generate_totp_secret()
         user = User(
             email=data.email,
             full_name=data.full_name,
             role=data.role,
-            totp_secret=totp_secret,
+            created_by=created_by,
             is_active=False,
             totp_verified=False,
         )
@@ -325,8 +326,32 @@ class UserService:
             if len(active_admins) <= 1:
                 raise ValueError("Cannot demote the last active admin")
 
+            # Delete recovery codes — admin-only feature
+            await self.db.exec(
+                delete(RecoveryCode).where(RecoveryCode.user_id == user_id)
+            )
+
+            # Remove user/audit/super permissions
+            perm_result = await self.db.exec(
+                select(Permission.id).where(
+                    Permission.key.startswith("user:")
+                    | Permission.key.startswith("audit:")
+                    | (Permission.key == "permission:manage")
+                )
+            )
+            perm_ids = list(perm_result.all())
+            if perm_ids:
+                await self.db.exec(
+                    delete(UserPermission).where(
+                        UserPermission.user_id == user_id,
+                        UserPermission.permission_id.in_(perm_ids),
+                    )
+                )
+
         target.role = role
         target.modified_by = current_user_id
+        if role == "admin":
+            target.admin_onboarding_complete = False
         self.db.add(target)
         await self.db.flush()
 

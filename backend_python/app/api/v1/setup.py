@@ -3,13 +3,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.deps import get_db
 from app.schemas.setup import (
-    SetupConfirmRequest,
-    SetupConfirmResponse,
+    SetupCompleteRequest,
+    SetupCompleteResponse,
     SetupInitRequest,
     SetupInitResponse,
     SetupStatusResponse,
-    SetupVerifyRequest,
-    SetupVerifyResponse,
 )
 from app.services.setup_service import SetupService
 
@@ -45,42 +43,21 @@ async def setup_init(
         ) from None
 
 
-@router.post("/setup/verify", response_model=SetupVerifyResponse)
-async def setup_verify(
-    request: SetupVerifyRequest,
+@router.post("/setup/complete", response_model=SetupCompleteResponse)
+async def setup_complete(
+    request: SetupCompleteRequest,
     db: AsyncSession = Depends(get_db),
 ):
     service = SetupService(db)
     try:
-        result = await service.verify_setup(
+        result = await service.complete_setup(
             setup_token=request.setup_token,
             totp_code=request.totp_code,
         )
-        return SetupVerifyResponse(
-            user=result["user"],
-            recovery_codes=result["recovery_codes"],
-            confirm_token=result["confirm_token"],
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from None
-
-
-@router.post("/setup/confirm", response_model=SetupConfirmResponse)
-async def setup_confirm(
-    request: SetupConfirmRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    service = SetupService(db)
-    try:
-        result = await service.confirm_setup(
-            confirm_token=request.confirm_token,
-        )
-        return SetupConfirmResponse(
+        return SetupCompleteResponse(
             token=result["token"],
             user=result["user"],
+            recovery_codes=result["recovery_codes"],
         )
     except ValueError as e:
         raise HTTPException(

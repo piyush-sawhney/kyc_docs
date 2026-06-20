@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import RecoveryCodesModal from '../../components/RecoveryCodesModal.vue'
 import api from '../../api/client'
 
 const route = useRoute()
@@ -20,7 +21,6 @@ const pendingRole = ref<'user' | 'admin'>('user')
 const recoveryDialog = ref(false)
 const recoveryCodes = ref<string[]>([])
 const generatingCodes = ref(false)
-const codesConfirmed = ref(false)
 const roleChangeLoading = ref(false)
 const roleChangeError = ref('')
 const reEnrollDialog = ref(false)
@@ -87,28 +87,12 @@ async function generateRecoveryCodes() {
   try {
     const { data } = await api.post(`/users/${route.params.id}/recovery-codes`)
     recoveryCodes.value = data.recoveryCodes
-    codesConfirmed.value = false
     recoveryDialog.value = true
   } catch { /* ignore */ }
   generatingCodes.value = false
 }
 
-function downloadCodes() {
-  const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `recovery-codes-${user.value?.fullName?.replace(/\s+/g, '-') || 'user'}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
-  codesConfirmed.value = true
-}
 
-async function copyCode(code: string) {
-  try {
-    await navigator.clipboard.writeText(code)
-  } catch { /* ignore */ }
-}
 
 async function initReEnroll() {
   reEnrollLoading.value = true
@@ -314,44 +298,13 @@ function initials(name: string) {
       </div>
     </div>
 
-    <!-- Recovery Codes Modal -->
-    <div class="modal-backdrop fade show" v-if="recoveryDialog"></div>
-    <div class="modal d-block" tabindex="-1" v-if="recoveryDialog">
-      <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-body text-center p-4">
-            <div class="d-inline-flex align-items-center justify-content-center mb-3"
-              style="width: 56px; height: 56px; border-radius: 50%; background: rgba(245,158,11,0.1);">
-              <i class="bi bi-shield-key" style="font-size: 28px; color: #F59E0B;"></i>
-            </div>
-            <h6 class="fw-bold mb-1">Recovery Codes for {{ user?.fullName }}</h6>
-            <div class="alert alert-warning d-flex align-items-center py-2 px-3 small mb-3 text-start" role="alert">
-              <i class="bi bi-exclamation-triangle me-2"></i>
-              Old codes have been invalidated. Save these new codes. Each code can only be used once.
-            </div>
-            <div class="card bg-light border-0 mb-3">
-              <div class="card-body py-3">
-                <div v-for="(code, i) in recoveryCodes" :key="i"
-                  class="d-flex align-items-center justify-content-center gap-2 py-1">
-                  <code class="fs-5 fw-bold" style="color: #1E3A5F; letter-spacing: 1px;">{{ code }}</code>
-                  <button class="btn btn-sm btn-outline-secondary border-0" @click="copyCode(code)" title="Copy code">
-                    <i class="bi bi-clipboard"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-primary flex-fill" @click="downloadCodes">
-                <i class="bi bi-download me-1"></i> Download Codes
-              </button>
-              <button class="btn btn-primary flex-fill" @click="recoveryDialog = false">
-                <i class="bi bi-check me-1"></i> Done
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <RecoveryCodesModal
+      :show="recoveryDialog"
+      :recoveryCodes="recoveryCodes"
+      warningMessage="Old codes have been invalidated. Save these new codes. Each code can only be used once."
+      @continue="recoveryDialog = false"
+      @close="recoveryDialog = false"
+    />
 
     <!-- Re-enroll Authenticator Modal -->
     <div class="modal-backdrop fade show" v-if="reEnrollDialog"></div>

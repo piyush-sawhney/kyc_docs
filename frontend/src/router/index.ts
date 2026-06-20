@@ -33,10 +33,10 @@ router.beforeEach(async (to, _from, next) => {
     await setup.checkStatus()
   }
 
-  if (to.meta.setup) {
-    next()
-  } else if (setup.needsSetup && to.path !== '/setup') {
+  if (setup.needsSetup && to.path !== '/setup') {
     next('/setup')
+  } else if (to.meta.setup && !setup.needsSetup && !auth.user) {
+    next('/login')
   } else if (to.meta.auth && !auth.user) {
     next('/login')
   } else if (to.meta.guest && auth.user) {

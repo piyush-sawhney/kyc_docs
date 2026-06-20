@@ -60,63 +60,51 @@ function closeMenu() {
   <div>
     <div v-if="routeLoading" class="route-loader"></div>
 
-    <template v-if="auth.user && !setup.needsSetup">
-      <nav class="navbar navbar-expand navbar-light bg-white border-bottom fixed-top" style="height: 56px; padding: 0 16px;">
-        <div class="d-flex align-items-center w-100">
-          <div class="d-flex align-items-center gap-2">
-            <KnapsLogo size="sm" />
-          </div>
+    <nav v-if="auth.user && !setup.needsSetup" class="navbar navbar-expand navbar-light bg-white border-bottom fixed-top" style="height: 56px; padding: 0 16px;">
+      <div class="d-flex align-items-center w-100">
+        <div class="d-flex align-items-center gap-2">
+          <KnapsLogo size="sm" />
+        </div>
 
-          <div class="d-flex align-items-center gap-1 ms-3">
-            <router-link v-for="item in visibleNavItems" :key="item.route" :to="item.route"
-              class="nav-btn text-decoration-none px-3 py-2 small fw-medium"
-              :class="router.currentRoute.value.path === item.route ? 'text-primary' : 'text-muted'">
-              <i :class="item.icon + ' me-1'" style="font-size: 14px;"></i>
-              {{ item.title }}
-            </router-link>
-          </div>
+        <div class="d-flex align-items-center gap-1 ms-3">
+          <router-link v-for="item in visibleNavItems" :key="item.route" :to="item.route"
+            class="nav-btn text-decoration-none px-3 py-2 small fw-medium"
+            :class="router.currentRoute.value.path === item.route ? 'text-primary' : 'text-muted'">
+            <i :class="item.icon + ' me-1'" style="font-size: 14px;"></i>
+            {{ item.title }}
+          </router-link>
+        </div>
 
-          <div class="ms-auto d-flex align-items-center gap-2">
-            <div class="dropdown">
-              <button class="btn btn-link text-decoration-none text-dark px-2 dropdown-toggle d-flex align-items-center gap-1"
-                @click="userMenuOpen = !userMenuOpen" data-bs-toggle="dropdown" aria-expanded="false">
-                <div class="avatar-initials" style="background: rgba(30,58,95,0.08); color: #1E3A5F; width: 28px; height: 28px; font-size: 11px;">
-                  {{ initials }}
-                </div>
-                <small class="fw-medium text-muted">{{ auth.user?.fullName }}</small>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 py-1" style="min-width: 200px;"
-                :class="{ show: userMenuOpen }">
-                <li><hr class="dropdown-divider my-1"></li>
-                <li>
-                  <a class="dropdown-item small py-2 text-danger" href="#" @click.prevent="handleLogout(); closeMenu()">
-                    <i class="bi bi-box-arrow-right me-2"></i> Logout
-                  </a>
-                </li>
-              </ul>
-            </div>
+        <div class="ms-auto d-flex align-items-center gap-2">
+          <div class="dropdown">
+            <button class="btn btn-link text-decoration-none text-dark px-2 dropdown-toggle d-flex align-items-center gap-1"
+              @click="userMenuOpen = !userMenuOpen" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="avatar-initials" style="background: rgba(30,58,95,0.08); color: #1E3A5F; width: 28px; height: 28px; font-size: 11px;">
+                {{ initials }}
+              </div>
+              <small class="fw-medium text-muted">{{ auth.user?.fullName }}</small>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border rounded-3 py-1" style="min-width: 200px;"
+              :class="{ show: userMenuOpen }">
+              <li><hr class="dropdown-divider my-1"></li>
+              <li>
+                <a class="dropdown-item small py-2 text-danger" href="#" @click.prevent="handleLogout(); closeMenu()">
+                  <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
-      </nav>
+      </div>
+    </nav>
 
-      <main style="padding-top: 56px;">
-        <router-view v-slot="{ Component }">
-          <transition name="page" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </main>
-    </template>
-
-    <template v-else>
-      <main>
-        <router-view v-slot="{ Component }">
-          <transition name="page" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </main>
-    </template>
+    <main :style="auth.user && !setup.needsSetup ? 'padding-top: 56px;' : ''">
+      <router-view v-slot="{ Component }">
+        <transition name="page" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
+    </main>
   </div>
 </template>
 

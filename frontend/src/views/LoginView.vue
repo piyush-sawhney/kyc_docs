@@ -2,17 +2,14 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { useSetupStore } from '../stores/setup'
 import KnapsLogo from '../components/KnapsLogo.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
-const setup = useSetupStore()
 const step = ref<'email' | 'totp' | 'recovery'>('email')
 const email = ref('')
 const totpCode = ref('')
 const loading = ref(false)
-const loadingConfirm = ref(false)
 const error = ref('')
 const showRecovery = ref(false)
 const recoveryEmail = ref('')
@@ -54,15 +51,15 @@ async function handleTotpSubmit() {
   try {
     if (needsConfirm.value) {
       const result = await auth.resumeSetup(email.value, totpCode.value)
-      confirmToken.value = result.confirmToken
+      confirmToken.value = result.token
       recoveryCodes.value = result.recoveryCodes
       resumeUser.value = result.user
       step.value = 'recovery'
     } else {
       const result = await auth.verifyTotp(email.value, totpCode.value)
       totpAttempts.value = 0
-      if (result.recoveryCodesMissing) {
-        router.push('/recovery-codes?force=true')
+      if (result.requiresOnboarding) {
+        router.push(`/recovery-codes?onboard=${result.onboardingToken}`)
       } else {
         router.push('/')
       }
@@ -88,28 +85,19 @@ async function handleTotpSubmit() {
 }
 
 async function downloadAndGo() {
-  loadingConfirm.value = true
-  error.value = ''
-  try {
-    const result = await setup.setupConfirm(confirmToken.value)
-    auth.token = result.token
-    localStorage.setItem('token', result.token)
-    auth.user = result.user
+  auth.token = confirmToken.value
+  localStorage.setItem('token', confirmToken.value)
+  auth.user = resumeUser.value as { id: string; email: string; fullName: string; role: string }
 
-    const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'recovery-codes.txt'
-    a.click()
-    URL.revokeObjectURL(url)
+  const blob = new Blob([recoveryCodes.value.join('\n')], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'recovery-codes.txt'
+  a.click()
+  URL.revokeObjectURL(url)
 
-    router.push('/')
-  } catch (err: any) {
-    error.value = err.response?.data?.message || 'Confirmation failed'
-  } finally {
-    loadingConfirm.value = false
-  }
+  router.push('/')
 }
 
 async function copyCode(code: string) {
@@ -117,12 +105,14 @@ async function copyCode(code: string) {
     await navigator.clipboard.writeText(code)
   } catch { /* ignore */ }
 }
+
+async function handleRecoveryLogin() {
   recoveryLoading.value = true
   error.value = ''
   try {
     const result = await auth.recoveryLogin(recoveryEmail.value, recoveryCode.value)
-    if (result.recoveryCodesMissing) {
-      router.push('/recovery-codes?force=true')
+    if (result.requiresOnboarding) {
+      router.push(`/recovery-codes?onboard=${result.onboardingToken}`)
     } else {
       router.push('/')
     }
@@ -169,8 +159,7 @@ async function copyCode(code: string) {
 
           <div v-if="error" class="alert alert-danger py-2 px-3 small mb-3">{{ error }}</div>
 
-          <button class="btn btn-primary w-100 btn-lg" :disabled="loadingConfirm" @click="downloadAndGo">
-            <span v-if="loadingConfirm" class="spinner-border spinner-border-sm me-2" role="status"></span>
+          <button class="btn btn-primary w-100 btn-lg" @click="downloadAndGo">
             <i class="bi bi-download me-1"></i> Download Recovery Codes
           </button>
         </template>

@@ -15,24 +15,15 @@ class SetupInitResponse(BaseModel):
     setup_token: str
 
 
-class SetupVerifyRequest(BaseModel):
+class SetupCompleteRequest(BaseModel):
     setup_token: str
     totp_code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
-class SetupVerifyResponse(BaseModel):
-    user: "UserResponse"
-    recovery_codes: list[str]
-    confirm_token: str
-
-
-class SetupConfirmRequest(BaseModel):
-    confirm_token: str
-
-
-class SetupConfirmResponse(BaseModel):
+class SetupCompleteResponse(BaseModel):
     token: str
     user: "UserResponse"
+    recovery_codes: list[str]
 
 
 class UserResponse(BaseModel):
@@ -42,5 +33,4 @@ class UserResponse(BaseModel):
     role: str
 
 
-SetupVerifyResponse.model_rebuild()
-SetupConfirmResponse.model_rebuild()
+SetupCompleteResponse.model_rebuild()

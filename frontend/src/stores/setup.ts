@@ -23,15 +23,11 @@ export const useSetupStore = defineStore('setup', () => {
     return data
   }
 
-  async function setupVerify(setupToken: string, totpCode: string) {
-    const { data } = await api.post('/setup/verify', { setupToken, totpCode })
+  async function setupComplete(setupToken: string, totpCode: string) {
+    const { data } = await api.post('/setup/complete', { setupToken, totpCode })
+    needsSetup.value = false
     return data
   }
 
-  async function setupConfirm(confirmToken: string) {
-    const { data } = await api.post('/setup/confirm', { confirmToken })
-    return data
-  }
-
-  return { needsSetup, initialized, checkStatus, setupInit, setupVerify, setupConfirm }
+  return { needsSetup, initialized, checkStatus, setupInit, setupComplete }
 })

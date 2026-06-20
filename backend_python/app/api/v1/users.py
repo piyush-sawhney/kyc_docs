@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.deps import (
-    get_current_active_user,
     get_db,
     prevent_self_action,
     require_permission,
@@ -70,15 +69,15 @@ async def list_users(
     include_deleted: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("user:view")),
     db: AsyncSession = Depends(get_db),
 ):
     if include_deleted:
         user_perms = await current_user.get_permissions()
-        if "user:view" not in user_perms and "permission:manage" not in user_perms:
+        if "user:deleted" not in user_perms and "permission:manage" not in user_perms:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission 'user:view' required",
+                detail="Permission 'user:deleted' required",
             )
     service = UserService(db)
     users, total = await service.get_users(
@@ -93,12 +92,12 @@ async def list_users(
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     data: UserCreate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("user:create")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
     try:
-        user = await service.create_user(data)
+        user = await service.create_user(data, created_by=current_user.id)
         return _user_to_response(user)
     except ValueError as e:
         raise HTTPException(
@@ -111,7 +110,7 @@ async def create_user(
 async def list_deleted_users(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=200),
-    current_user: User = Depends(require_permission("user:view")),
+    current_user: User = Depends(require_permission("user:deleted")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -125,7 +124,7 @@ async def list_deleted_users(
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(
     user_id: UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("user:view")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -142,7 +141,7 @@ async def get_user(
 async def update_user(
     user_id: UUID,
     data: UserUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("user:edit")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -164,7 +163,7 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permission("user:delete")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -180,7 +179,7 @@ async def delete_user(
 async def deactivate_user(
     request: Request,
     user_id: UUID = Depends(prevent_self_action("deactivate")),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_permission("user:deactivate")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -203,7 +202,7 @@ async def deactivate_user(
 async def reactivate_user(
     request: Request,
     user_id: UUID,
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_permission("user:reactivate")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -221,7 +220,7 @@ async def reactivate_user(
 async def restore_user(
     request: Request,
     user_id: UUID,
-    current_user: User = Depends(require_permission("user:manage")),
+    current_user: User = Depends(require_permission("user:restore")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -240,7 +239,7 @@ async def update_user_role(
     request: Request,
     data: UserRoleUpdate,
     user_id: UUID = Depends(prevent_self_action("change role of")),
-    current_user: User = Depends(require_permission("user:manage")),
+    current_user: User = Depends(require_permission("user:change_role")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)
@@ -268,7 +267,7 @@ async def update_user_role(
 async def admin_re_enroll(
     request: Request,
     user_id: UUID = Depends(prevent_self_action("re-enroll")),
-    current_user: User = Depends(require_role("admin")),
+    current_user: User = Depends(require_permission("user:re-enroll")),
     db: AsyncSession = Depends(get_db),
 ):
     service = UserService(db)

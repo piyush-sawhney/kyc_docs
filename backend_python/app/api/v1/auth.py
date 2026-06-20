@@ -4,6 +4,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.deps import get_current_active_user, get_db
 from app.models.user import User
 from app.schemas.auth import (
+    AdminOnboardingRequest,
+    AdminOnboardingResponse,
     LoginInitRequest,
     LoginInitResponse,
     LoginRequest,
@@ -50,9 +52,10 @@ async def login(
     try:
         result = await service.login(email=request.email, totp_code=request.totp_code)
         return LoginResponse(
-            token=result["token"],
-            user=result["user"],
-            recovery_codes_missing=result["recovery_codes_missing"],
+            token=result.get("token"),
+            user=result.get("user"),
+            requires_onboarding=result.get("requires_onboarding", False),
+            onboarding_token=result.get("onboarding_token"),
         )
     except ValueError as e:
         raise HTTPException(
@@ -72,9 +75,10 @@ async def recovery_login(
             email=request.email, recovery_code=request.recovery_code
         )
         return LoginResponse(
-            token=result["token"],
-            user=result["user"],
-            recovery_codes_missing=result["recovery_codes_missing"],
+            token=result.get("token"),
+            user=result.get("user"),
+            requires_onboarding=result.get("requires_onboarding", False),
+            onboarding_token=result.get("onboarding_token"),
         )
     except ValueError as e:
         raise HTTPException(
@@ -94,7 +98,7 @@ async def resume_setup(
             email=request.email, totp_code=request.totp_code
         )
         return ResumeSetupResponse(
-            confirm_token=result["confirm_token"],
+            token=result["token"],
             recovery_codes=result["recovery_codes"],
             user=result["user"],
         )
@@ -217,6 +221,28 @@ async def auth_me(
         full_name=current_user.full_name,
         role=current_user.role,
     )
+
+
+@router.post("/auth/admin/onboarding", response_model=AdminOnboardingResponse)
+async def admin_onboarding(
+    request: AdminOnboardingRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    try:
+        result = await service.admin_onboarding(
+            onboarding_token=request.onboarding_token
+        )
+        return AdminOnboardingResponse(
+            token=result["token"],
+            user=result["user"],
+            recovery_codes=result["recovery_codes"],
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from None
 
 
 @router.post("/auth/logout")

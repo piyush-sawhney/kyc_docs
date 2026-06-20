@@ -5,6 +5,7 @@ from sqlmodel import delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from app.core.encryption import field_encryption
 from app.core.security import (
     blind_index,
     create_access_token,
@@ -17,8 +18,10 @@ from app.core.security import (
     verify_token,
     verify_totp_code,
 )
+from app.models.permission import Permission
 from app.models.recovery_code import RecoveryCode
 from app.models.user import User
+from app.models.user_permission import UserPermission
 
 
 class AuthService:
@@ -43,14 +46,12 @@ class AuthService:
             totp_uri = get_totp_uri(totp_secret, email)
             qr_data_url = generate_qr_code(totp_uri)
 
-            user.totp_secret = totp_secret
-            self.db.add(user)
-            await self.db.flush()
-
+            # Embed TOTP secret in token — no DB write
             enroll_token = create_access_token(
                 subject=str(user.id),
                 email=user.email,
                 role=user.role,
+                totp_secret=totp_secret,
                 expires_delta=timedelta(minutes=10),
             )
 
@@ -90,17 +91,23 @@ class AuthService:
             code_hash = hash_recovery_code(code)
             rc = RecoveryCode(user_id=user.id, code_hash=code_hash)
             self.db.add(rc)
-        await self.db.flush()
 
-        confirm_token = create_access_token(
+        # Activate user and assign all permissions
+        user.is_active = True
+        self.db.add(user)
+        await self._assign_all_permissions(user.id)
+
+        await self.db.commit()
+
+        token = create_access_token(
             subject=str(user.id),
             email=user.email,
             role=user.role,
-            expires_delta=timedelta(minutes=60),
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
         )
 
         return {
-            "confirm_token": confirm_token,
+            "token": token,
             "recovery_codes": recovery_codes,
             "user": {
                 "id": str(user.id),
@@ -129,19 +136,30 @@ class AuthService:
         if not verify_totp_code(user.totp_secret, totp_code):
             raise ValueError("Invalid TOTP code")
 
+        if user.role == "admin" and not user.admin_onboarding_complete:
+            onboarding_token = create_access_token(
+                subject=str(user.id),
+                email=user.email,
+                role=user.role,
+                expires_delta=timedelta(minutes=30),
+            )
+            return {
+                "requires_onboarding": True,
+                "onboarding_token": onboarding_token,
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                },
+            }
+
         token = create_access_token(
             subject=str(user.id),
             email=user.email,
             role=user.role,
             expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
         )
-
-        recovery_codes_result = await self.db.exec(
-            select(RecoveryCode).where(
-                RecoveryCode.user_id == user.id, not RecoveryCode.is_used
-            )
-        )
-        recovery_codes_missing = len(recovery_codes_result.all()) < 2
 
         return {
             "token": token,
@@ -151,7 +169,6 @@ class AuthService:
                 "full_name": user.full_name,
                 "role": user.role,
             },
-            "recovery_codes_missing": recovery_codes_missing,
         }
 
     async def recovery_login(self, email: str, recovery_code: str) -> dict:
@@ -169,7 +186,7 @@ class AuthService:
 
         codes_result = await self.db.exec(
             select(RecoveryCode).where(
-                RecoveryCode.user_id == user.id, not RecoveryCode.is_used
+                RecoveryCode.user_id == user.id, RecoveryCode.is_used == False
             )
         )
         codes = codes_result.all()
@@ -187,19 +204,30 @@ class AuthService:
         self.db.add(matched)
         await self.db.flush()
 
+        if user.role == "admin" and not user.admin_onboarding_complete:
+            onboarding_token = create_access_token(
+                subject=str(user.id),
+                email=user.email,
+                role=user.role,
+                expires_delta=timedelta(minutes=30),
+            )
+            return {
+                "requires_onboarding": True,
+                "onboarding_token": onboarding_token,
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "full_name": user.full_name,
+                    "role": user.role,
+                },
+            }
+
         token = create_access_token(
             subject=str(user.id),
             email=user.email,
             role=user.role,
             expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
         )
-
-        remaining = await self.db.exec(
-            select(RecoveryCode).where(
-                RecoveryCode.user_id == user.id, not RecoveryCode.is_used
-            )
-        )
-        recovery_codes_missing = len(remaining.all()) < 2
 
         return {
             "token": token,
@@ -209,7 +237,6 @@ class AuthService:
                 "full_name": user.full_name,
                 "role": user.role,
             },
-            "recovery_codes_missing": recovery_codes_missing,
         }
 
     async def totp_enroll(self, enroll_token: str, totp_code: str) -> dict:
@@ -218,8 +245,13 @@ class AuthService:
             raise ValueError("Invalid or expired enrollment token")
 
         user_id = payload.get("sub")
-        if not user_id:
+        totp_secret = payload.get("totp_secret")
+
+        if not user_id or not totp_secret:
             raise ValueError("Invalid enrollment token")
+
+        if not verify_totp_code(totp_secret, totp_code):
+            raise ValueError("Invalid TOTP code")
 
         result = await self.db.exec(select(User).where(User.id == UUID(user_id)))
         user = result.first()
@@ -227,22 +259,22 @@ class AuthService:
         if not user:
             raise ValueError("User not found")
 
-        if not user.totp_secret:
-            raise ValueError("TOTP not initialized")
-
-        if not verify_totp_code(user.totp_secret, totp_code):
-            raise ValueError("Invalid TOTP code")
-
-        recovery_codes = generate_recovery_codes(5)
-        for code in recovery_codes:
-            code_hash = hash_recovery_code(code)
-            rc = RecoveryCode(user_id=user.id, code_hash=code_hash)
-            self.db.add(rc)
-
+        # Write TOTP secret and activate atomically
+        dek = user._ensure_dek()
+        user.totp_secret_encrypted = field_encryption.encrypt(totp_secret, dek)
         user.totp_verified = True
         user.is_active = True
+
+        recovery_codes = None
+        if user.role == "admin":
+            recovery_codes = generate_recovery_codes(5)
+            for code in recovery_codes:
+                code_hash = hash_recovery_code(code)
+                rc = RecoveryCode(user_id=user.id, code_hash=code_hash)
+                self.db.add(rc)
+
         self.db.add(user)
-        await self.db.flush()
+        await self.db.commit()
 
         token = create_access_token(
             subject=str(user.id),
@@ -274,7 +306,8 @@ class AuthService:
 
         if not user.totp_secret:
             totp_secret = generate_totp_secret()
-            user.totp_secret = totp_secret
+            dek = user._ensure_dek()
+            user.totp_secret_encrypted = field_encryption.encrypt(totp_secret, dek)
             self.db.add(user)
             await self.db.flush()
 
@@ -288,7 +321,8 @@ class AuthService:
             raise ValueError("User not found")
 
         secret = generate_totp_secret()
-        user.totp_secret = secret
+        dek = user._ensure_dek()
+        user.totp_secret_encrypted = field_encryption.encrypt(secret, dek)
         user.totp_verified = False
         self.db.add(user)
         await self.db.flush()
@@ -323,7 +357,7 @@ class AuthService:
     async def check_recovery_codes_status(self, user_id: UUID) -> bool:
         result = await self.db.exec(
             select(RecoveryCode).where(
-                RecoveryCode.user_id == user_id, not RecoveryCode.is_used
+                RecoveryCode.user_id == user_id, RecoveryCode.is_used == False
             )
         )
         return len(result.all()) > 0
@@ -339,3 +373,66 @@ class AuthService:
 
         await self.db.flush()
         return codes
+
+    async def _assign_all_permissions(self, user_id: UUID) -> None:
+        result = await self.db.exec(select(Permission.id))
+        permission_ids = result.all()
+
+        for perm_id in permission_ids:
+            up = UserPermission(user_id=user_id, permission_id=perm_id)
+            self.db.add(up)
+
+        await self.db.flush()
+
+    async def admin_onboarding(self, onboarding_token: str) -> dict:
+        payload = verify_token(onboarding_token)
+        if not payload:
+            raise ValueError("Invalid or expired onboarding token")
+
+        user_id = payload.get("sub")
+        if not user_id:
+            raise ValueError("Invalid onboarding token")
+
+        result = await self.db.exec(select(User).where(User.id == UUID(user_id)))
+        user = result.first()
+
+        if not user:
+            raise ValueError("User not found")
+
+        if user.role != "admin":
+            raise ValueError("User is not an admin")
+
+        if user.admin_onboarding_complete:
+            raise ValueError("Admin onboarding already completed")
+
+        # Delete old unused recovery codes
+        await self.db.exec(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
+
+        # Generate fresh recovery codes
+        recovery_codes = generate_recovery_codes(5)
+        for code in recovery_codes:
+            code_hash = hash_recovery_code(code)
+            rc = RecoveryCode(user_id=user.id, code_hash=code_hash)
+            self.db.add(rc)
+
+        user.admin_onboarding_complete = True
+        self.db.add(user)
+        await self.db.flush()
+
+        token = create_access_token(
+            subject=str(user.id),
+            email=user.email,
+            role=user.role,
+            expires_delta=timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        )
+
+        return {
+            "token": token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role,
+            },
+            "recovery_codes": recovery_codes,
+        }

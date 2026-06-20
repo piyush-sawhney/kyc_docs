@@ -40,9 +40,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function verifyTotp(email: string, totpCode: string) {
     const { data } = await api.post('/auth/login', { email, totpCode })
-    token.value = data.token as string
-    localStorage.setItem('token', data.token as string)
-    user.value = data.user as User
+    if (data.token) {
+      token.value = data.token as string
+      localStorage.setItem('token', data.token as string)
+      user.value = data.user as User
+    }
     return data
   }
 
@@ -56,19 +58,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function recoveryLogin(email: string, code: string) {
     const { data } = await api.post('/auth/login/recovery', { email, recoveryCode: code })
-    token.value = data.token as string
-    localStorage.setItem('token', data.token as string)
-    user.value = data.user as User
-    return data
-  }
-
-  async function fetchRecoveryStatus() {
-    try {
-      const { data } = await api.get('/auth/recovery-codes/status')
-      return (data as Record<string, boolean>).hasUnusedCodes
-    } catch {
-      return true
+    if (data.token) {
+      token.value = data.token as string
+      localStorage.setItem('token', data.token as string)
+      user.value = data.user as User
     }
+    return data
   }
 
   async function reEnroll() {
@@ -86,6 +81,14 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function adminOnboarding(onboardingToken: string) {
+    const { data } = await api.post('/auth/admin/onboarding', { onboardingToken })
+    token.value = data.token as string
+    localStorage.setItem('token', data.token as string)
+    user.value = data.user as User
+    return data
+  }
+
   async function logout() {
     try {
       await api.post('/auth/logout')
@@ -96,5 +99,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, token, initialized, fetchUser, loginInit, verifyTotp, totpEnroll, recoveryLogin, resumeSetup, fetchRecoveryStatus, reEnroll, reEnrollVerify, logout }
+  return { user, token, initialized, fetchUser, loginInit, verifyTotp, totpEnroll, recoveryLogin, resumeSetup, reEnroll, reEnrollVerify, adminOnboarding, logout }
 })

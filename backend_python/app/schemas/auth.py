@@ -20,7 +20,7 @@ class ResumeSetupRequest(BaseModel):
 
 
 class ResumeSetupResponse(BaseModel):
-    confirm_token: str
+    token: str
     recovery_codes: list[str]
     user: "UserResponse"
 
@@ -31,9 +31,10 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str
-    user: "UserResponse"
-    recovery_codes_missing: bool = False
+    token: str | None = None
+    user: "UserResponse | None" = None
+    requires_onboarding: bool = False
+    onboarding_token: str | None = None
 
 
 class RecoveryLoginRequest(BaseModel):
@@ -50,6 +51,16 @@ class TOTPEnrollResponse(BaseModel):
     token: str
     user: "UserResponse"
     recovery_codes: list[str] | None = None
+
+
+class AdminOnboardingRequest(BaseModel):
+    onboarding_token: str
+
+
+class AdminOnboardingResponse(BaseModel):
+    token: str
+    user: "UserResponse"
+    recovery_codes: list[str]
 
 
 class QRCodeResponse(BaseModel):
@@ -92,3 +103,4 @@ class UserResponse(BaseModel):
 LoginResponse.model_rebuild()
 TOTPEnrollResponse.model_rebuild()
 ResumeSetupResponse.model_rebuild()
+AdminOnboardingResponse.model_rebuild()

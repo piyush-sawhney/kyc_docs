@@ -108,6 +108,7 @@ class User(SQLModel, table=True):
         default=None, sa_column=Column(DateTime(timezone=True))
     )
     totp_verified: bool = Field(default=False, nullable=False)
+    admin_onboarding_complete: bool = Field(default=True, nullable=False)
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
