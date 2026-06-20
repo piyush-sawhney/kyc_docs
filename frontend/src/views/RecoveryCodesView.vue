@@ -16,7 +16,7 @@ const isForced = computed(() => route.query.force === 'true')
 async function load() {
   try {
     const { data } = await api.get('/auth/recovery-codes')
-    codes.value = data
+    codes.value = data.codes
   } catch { /* ignore */ }
   loading.value = false
 }
@@ -24,7 +24,7 @@ async function load() {
 async function generate() {
   generating.value = true
   try {
-    const { data } = await api.post('/auth/recovery-codes')
+    const { data } = await api.post('/auth/recovery-codes/generate')
     newCodes.value = data.recoveryCodes
     codesConfirmed.value = false
     load()

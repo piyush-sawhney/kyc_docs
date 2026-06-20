@@ -28,7 +28,7 @@ class AuthService:
     async def login_init(self, email: str) -> dict:
         email_hash = blind_index(email)
         result = await self.db.exec(
-            select(User).where(User.email_hash == email_hash, not User.is_deleted)
+            select(User).where(User.email_hash == email_hash, User.is_deleted == False)
         )
         user = result.first()
 
@@ -65,7 +65,7 @@ class AuthService:
     async def resume_setup(self, email: str, totp_code: str) -> dict:
         email_hash = blind_index(email)
         result = await self.db.exec(
-            select(User).where(User.email_hash == email_hash, not User.is_deleted)
+            select(User).where(User.email_hash == email_hash, User.is_deleted == False)
         )
         user = result.first()
 
@@ -113,7 +113,7 @@ class AuthService:
     async def login(self, email: str, totp_code: str) -> dict:
         email_hash = blind_index(email)
         result = await self.db.exec(
-            select(User).where(User.email_hash == email_hash, not User.is_deleted)
+            select(User).where(User.email_hash == email_hash, User.is_deleted == False)
         )
         user = result.first()
 
@@ -157,7 +157,7 @@ class AuthService:
     async def recovery_login(self, email: str, recovery_code: str) -> dict:
         email_hash = blind_index(email)
         result = await self.db.exec(
-            select(User).where(User.email_hash == email_hash, not User.is_deleted)
+            select(User).where(User.email_hash == email_hash, User.is_deleted == False)
         )
         user = result.first()
 
@@ -265,7 +265,7 @@ class AuthService:
     async def get_qr(self, email: str) -> str:
         email_hash = blind_index(email)
         result = await self.db.exec(
-            select(User).where(User.email_hash == email_hash, not User.is_deleted)
+            select(User).where(User.email_hash == email_hash, User.is_deleted == False)
         )
         user = result.first()
 
@@ -281,13 +281,52 @@ class AuthService:
         totp_uri = get_totp_uri(user.totp_secret, email)
         return generate_qr_code(totp_uri)
 
-    async def get_recovery_codes(self, user_id: UUID) -> list[str]:
+    async def re_enroll(self, user_id: UUID) -> str:
+        result = await self.db.exec(select(User).where(User.id == user_id))
+        user = result.first()
+        if not user:
+            raise ValueError("User not found")
+
+        secret = generate_totp_secret()
+        user.totp_secret = secret
+        user.totp_verified = False
+        self.db.add(user)
+        await self.db.flush()
+
+        totp_uri = get_totp_uri(secret, user.email)
+        return generate_qr_code(totp_uri)
+
+    async def re_enroll_verify(self, user_id: UUID, totp_code: str) -> None:
+        result = await self.db.exec(select(User).where(User.id == user_id))
+        user = result.first()
+        if not user:
+            raise ValueError("User not found")
+
+        if not user.totp_secret:
+            raise ValueError("No TOTP secret found. Initiate re-enrollment first.")
+
+        if not verify_totp_code(user.totp_secret, totp_code):
+            raise ValueError("Invalid verification code")
+
+        user.totp_verified = True
+        self.db.add(user)
+        await self.db.flush()
+
+    async def get_recovery_codes(self, user_id: UUID) -> list[RecoveryCode]:
+        result = await self.db.exec(
+            select(RecoveryCode)
+            .where(RecoveryCode.user_id == user_id)
+            .order_by(RecoveryCode.created_at)
+        )
+        return list(result.all())
+
+    async def check_recovery_codes_status(self, user_id: UUID) -> bool:
         result = await self.db.exec(
             select(RecoveryCode).where(
                 RecoveryCode.user_id == user_id, not RecoveryCode.is_used
             )
         )
-        return [code.code_hash for code in result.all()]
+        return len(result.all()) > 0
 
     async def generate_new_recovery_codes(self, user_id: UUID) -> list[str]:
         await self.db.exec(delete(RecoveryCode).where(RecoveryCode.user_id == user_id))

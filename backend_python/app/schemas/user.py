@@ -33,3 +33,41 @@ class UserResponse(BaseModel):
 class UserListResponse(BaseModel):
     users: list[UserResponse]
     total: int
+
+
+class UserRoleUpdate(BaseModel):
+    role: str = Field(pattern=r"^(admin|user)$")
+
+
+class DeletedUserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    is_active: bool
+    is_deleted: bool
+    deleted_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class DeletedUserListResponse(BaseModel):
+    users: list[DeletedUserResponse]
+    total: int
+
+
+class UserDeactivateResponse(BaseModel):
+    id: str
+    email: str
+    full_name: str
+    role: str
+    is_active: bool
+
+
+class ReEnrollResponse(BaseModel):
+    qr_data_url: str
+
+
+class AdminRecoveryCodesResponse(BaseModel):
+    recovery_codes: list[str]

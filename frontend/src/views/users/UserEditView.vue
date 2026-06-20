@@ -41,7 +41,7 @@ async function load() {
     selectedRole.value = usr.data.role
     allPermissions.value = perms.data
     userPermissionIds.value = userPerms.data.map((p: any) => p.id)
-    totalUsers.value = allUsers.data.length
+    totalUsers.value = allUsers.data.users.length
   } catch { /* ignore */ }
   loading.value = false
 }
@@ -113,7 +113,7 @@ async function copyCode(code: string) {
 async function initReEnroll() {
   reEnrollLoading.value = true
   try {
-    const { data } = await api.post('/auth/totp/re-enroll')
+    const { data } = await api.post(`/users/${route.params.id}/re-enroll`)
     reEnrollQr.value = data.qrDataUrl
     reEnrollStep.value = 'verify'
   } catch { /* ignore */ }
@@ -121,15 +121,10 @@ async function initReEnroll() {
 }
 
 async function verifyReEnroll() {
-  reEnrollLoading.value = true
-  try {
-    await api.post('/auth/totp/re-enroll/verify', { totpCode: reEnrollCode.value })
-    reEnrollDialog.value = false
-    reEnrollStep.value = 'qr'
-    reEnrollQr.value = ''
-    reEnrollCode.value = ''
-  } catch { /* ignore */ }
-  reEnrollLoading.value = false
+  reEnrollDialog.value = false
+  reEnrollStep.value = 'qr'
+  reEnrollQr.value = ''
+  reEnrollCode.value = ''
 }
 
 const groupedPermissions = computed(() => {
@@ -364,36 +359,32 @@ function initials(name: string) {
       <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
         <div class="modal-content border-0 shadow">
           <div class="modal-body text-center p-4">
-            <template v-if="reEnrollStep === 'qr' && !reEnrollQr">
+            <template v-if="!reEnrollQr">
               <div class="d-inline-flex align-items-center justify-content-center mb-3"
                 style="width: 56px; height: 56px; border-radius: 50%; background: rgba(30,58,95,0.08);">
                 <i class="bi bi-google" style="font-size: 28px; color: #1E3A5F;"></i>
               </div>
               <h6 class="fw-bold mb-1">Re-enroll Authenticator</h6>
-              <p class="small text-muted mb-3">Generate a new TOTP secret for Google Authenticator.</p>
+              <p class="small text-muted mb-3">
+                Reset this user's Google Authenticator. They will need to scan the new QR code on next login.
+              </p>
               <button class="btn btn-primary w-100" :disabled="reEnrollLoading" @click="initReEnroll">
                 <span v-if="reEnrollLoading" class="spinner-border spinner-border-sm me-1"></span>
                 <i class="bi bi-arrow-clockwise me-1"></i> Generate QR Code
               </button>
             </template>
 
-            <template v-if="reEnrollStep === 'verify' && reEnrollQr">
-              <h6 class="fw-bold mb-1">Scan New QR Code</h6>
-              <p class="small text-muted mb-3">Scan with Google Authenticator, then enter the code.</p>
+            <template v-else>
+              <h6 class="fw-bold mb-1">New QR Code Generated</h6>
+              <p class="small text-muted mb-3">
+                User's authenticator has been reset. Share this QR code with them to scan in Google Authenticator.
+              </p>
               <div class="d-flex justify-content-center mb-3">
-                <img :src="reEnrollQr" alt="TOTP QR" style="width: 160px; height: 160px; border-radius: 8px;" />
+                <img :src="reEnrollQr" alt="TOTP QR" style="width: 180px; height: 180px; border-radius: 8px;" />
               </div>
-              <div class="mb-3">
-                <input type="text" class="form-control text-center fs-5" v-model="reEnrollCode"
-                  placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" />
-              </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-primary flex-fill" :disabled="reEnrollLoading" @click="verifyReEnroll">
-                  <span v-if="reEnrollLoading" class="spinner-border spinner-border-sm me-1"></span>
-                  <i class="bi bi-check me-1"></i> Verify
-                </button>
-                <button class="btn btn-outline-secondary" @click="reEnrollDialog = false; reEnrollStep = 'qr'; reEnrollQr = ''; reEnrollCode = ''">Close</button>
-              </div>
+              <button class="btn btn-primary w-100" @click="verifyReEnroll">
+                <i class="bi bi-check me-1"></i> Done
+              </button>
             </template>
           </div>
         </div>

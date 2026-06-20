@@ -105,3 +105,18 @@ def require_role(role: str):
         return current_user
 
     return role_checker
+
+
+def prevent_self_action(action_name: str):
+    async def checker(
+        user_id: UUID,
+        current_user: User = Depends(get_current_active_user),
+    ) -> UUID:
+        if current_user.id == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"You cannot {action_name} yourself",
+            )
+        return user_id
+
+    return checker

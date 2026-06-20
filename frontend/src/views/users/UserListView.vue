@@ -33,8 +33,8 @@ onMounted(async () => {
       api.get('/users'),
       api.get('/users/deleted'),
     ])
-    users.value = active.data
-    deletedUsers.value = deleted.data
+    users.value = active.data.users
+    deletedUsers.value = deleted.data.users
   } catch { /* ignore */ }
   loading.value = false
 })
@@ -57,10 +57,10 @@ async function softDeleteUser(user: any) {
   const confirmed = confirm(`Delete user "${user.fullName}"? They will be permanently disabled. This can be undone.`)
   if (!confirmed) return
   try {
-    await api.post(`/users/${user.id}/soft-delete`)
+    await api.delete(`/users/${user.id}`)
     users.value = users.value.filter((u) => u.id !== user.id)
     const { data } = await api.get('/users/deleted')
-    deletedUsers.value = data
+    deletedUsers.value = data.users
   } catch { /* ignore */ }
 }
 
@@ -73,8 +73,8 @@ async function restoreUser(userId: string) {
       api.get('/users'),
       api.get('/users/deleted'),
     ])
-    users.value = active.data
-    deletedUsers.value = deleted.data
+    users.value = active.data.users
+    deletedUsers.value = deleted.data.users
   } catch { /* ignore */ }
 }
 
@@ -174,7 +174,7 @@ function initials(name: string) {
                     @click="router.push(`/users/${u.id}`)">
                     <i class="bi bi-shield-account me-1"></i> Permissions
                   </button>
-                  <button v-if="u.role !== 'admin'" class="btn btn-sm" :class="u.isActive ? 'btn-soft-danger' : 'btn-soft-success'"
+                  <button class="btn btn-sm" :class="u.isActive ? 'btn-soft-danger' : 'btn-soft-success'"
                     :title="u.isActive ? 'Deactivate' : 'Reactivate'"
                     @click="toggleActive(u)">
                     <i :class="u.isActive ? 'bi bi-person-x' : 'bi bi-person-check'"></i>

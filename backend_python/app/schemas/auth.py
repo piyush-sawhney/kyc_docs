@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -52,6 +54,28 @@ class TOTPEnrollResponse(BaseModel):
 
 class QRCodeResponse(BaseModel):
     qr_data_url: str
+
+
+class ReEnrollInitResponse(BaseModel):
+    qr_data_url: str
+
+
+class ReEnrollVerifyRequest(BaseModel):
+    totp_code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class ReEnrollVerifyResponse(BaseModel):
+    message: str
+
+
+class RecoveryCodeStatus(BaseModel):
+    id: str
+    is_used: bool
+    created_at: datetime
+
+
+class RecoveryCodeListResponse(BaseModel):
+    codes: list[RecoveryCodeStatus]
 
 
 class RecoveryCodesResponse(BaseModel):

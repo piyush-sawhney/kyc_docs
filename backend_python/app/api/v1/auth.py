@@ -9,8 +9,13 @@ from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
     QRCodeResponse,
+    RecoveryCodeListResponse,
     RecoveryCodesResponse,
+    RecoveryCodeStatus,
     RecoveryLoginRequest,
+    ReEnrollInitResponse,
+    ReEnrollVerifyRequest,
+    ReEnrollVerifyResponse,
     ResumeSetupRequest,
     ResumeSetupResponse,
     TOTPEnrollRequest,
@@ -138,8 +143,62 @@ async def get_qr_code(
         ) from None
 
 
-@router.get("/auth/recovery-codes", response_model=RecoveryCodesResponse)
-async def get_recovery_codes(
+@router.post("/auth/totp/re-enroll", response_model=ReEnrollInitResponse)
+async def re_enroll_init(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    try:
+        qr_data_url = await service.re_enroll(user_id=current_user.id)
+        return ReEnrollInitResponse(qr_data_url=qr_data_url)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from None
+
+
+@router.post("/auth/totp/re-enroll/verify", response_model=ReEnrollVerifyResponse)
+async def re_enroll_verify(
+    request: ReEnrollVerifyRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    try:
+        await service.re_enroll_verify(
+            user_id=current_user.id, totp_code=request.totp_code
+        )
+        return ReEnrollVerifyResponse(message="Authenticator re-enrolled successfully")
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        ) from None
+
+
+@router.get("/auth/recovery-codes", response_model=RecoveryCodeListResponse)
+async def list_recovery_codes(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    service = AuthService(db)
+    codes = await service.get_recovery_codes(user_id=current_user.id)
+    return RecoveryCodeListResponse(
+        codes=[
+            RecoveryCodeStatus(
+                id=str(c.id),
+                is_used=c.is_used,
+                created_at=c.created_at,
+            )
+            for c in codes
+        ]
+    )
+
+
+@router.post("/auth/recovery-codes/generate", response_model=RecoveryCodesResponse)
+async def generate_recovery_codes(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
